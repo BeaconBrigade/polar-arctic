@@ -94,7 +94,7 @@ impl Application for Menu {
 
 #[derive(Default)]
 pub struct EcgChart {
-    data_points: VecDeque<(i32, f32)>
+    data_points: VecDeque<(u64, f32)>
 }
 
 impl Chart<Message> for EcgChart {
@@ -116,8 +116,7 @@ impl Chart<Message> for EcgChart {
 
         ctx.draw_series(
             LineSeries::new(
-                (start..end).map(|p| (p as u64, self.data_points[(p - start) as usize].1 as f64)),
-                //self.data_points.iter().map(|p| (p.0, p.1)),
+                (start..end).map(|p| (p, self.data_points[(p - start) as usize].1 as f64)),
                 &BLACK
         )).expect("Error making graph");
     }
