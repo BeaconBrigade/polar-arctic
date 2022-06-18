@@ -104,9 +104,10 @@ impl Chart<Message> for EcgChart {
         let end = self.data_points.back().unwrap().0;
 
         let mut ctx = builder
-            .set_label_area_size(LabelAreaPosition::Top, -200i32)
+            .set_label_area_size(LabelAreaPosition::Top, -1i32)
+            .set_label_area_size(LabelAreaPosition::Left, 40i32)
             .caption("ECG Data", ("sans-serif", 30u32))
-            .build_cartesian_2d(0.0..100.0f64, -1000.0..1000.0f64)
+            .build_cartesian_2d(0..100u64, -1000.0..1000.0f64)
             .unwrap();
 
         ctx.configure_mesh()
@@ -115,7 +116,7 @@ impl Chart<Message> for EcgChart {
 
         ctx.draw_series(
             LineSeries::new(
-                (start..end).map(|p| (p as f64, self.data_points[(p - start) as usize].1 as f64)),
+                (start..end).map(|p| (p as u64, self.data_points[(p - start) as usize].1 as f64)),
                 //self.data_points.iter().map(|p| (p.0, p.1)),
                 &BLACK
         )).expect("Error making graph");
