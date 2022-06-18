@@ -15,6 +15,7 @@ name = "back"
 path = "src/lib.rs"
 
 [dependencies]
-iced = { version = "0.4", features = ["tokio"] }
+plotters-iced = "0.1"
+iced = { version = "0.3", features = ["tokio", "canvas"] }
 plotters = "0.3"
-plotters-iced = "0.2"
+csv = "1.1"

@@ -1,10 +1,12 @@
 use iced::{
-    alignment, executor, text_input, Application, Column, Command, Element, Length, Subscription,
-    Text, TextInput,
+    HorizontalAlignment, executor, text_input, Application, Column, 
+    Command, Element, Length, Subscription, Text, TextInput, Clipboard
 };
 use std::time;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
-use plotters::prelude::ChartBuilder;
+use plotters::prelude::*;
+use std::collections::VecDeque;
+use csv::ReaderBuilder;
 
 mod blue;
 
@@ -30,14 +32,17 @@ impl Application for Menu {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (Menu::default(), Command::none())
+        let mut menu = Menu::default();
+        menu.ecg.init_data().expect("Error loading data");
+
+        (menu, Command::none())
     }
 
     fn title(&self) -> String {
         "Polar-Arctic".to_owned()
     }
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    fn update(&mut self, message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
         match message {
             Message::None => {}
             Message::Tick => {}
@@ -61,7 +66,7 @@ impl Application for Menu {
         let title = Text::new("Polar-Arctic")
             .width(Length::Fill)
             .size(60)
-            .horizontal_alignment(alignment::Horizontal::Center);
+            .horizontal_alignment(HorizontalAlignment::Center);
 
         let input = TextInput::new(
             &mut self.device_input,
@@ -82,20 +87,44 @@ impl Application for Menu {
             .push(title)
             .push(input)
             .push(testing)
+            .push(self.ecg.view())
             .into()
     }
 }
 
 #[derive(Default)]
-pub struct EcgChart;
+pub struct EcgChart {
+    data_points: VecDeque<(i32, f32)>
+}
 
 impl Chart<Message> for EcgChart {
-    fn build_chart<DB: DrawingBackend>(&self, builder: ChartBuilder<DB>) {}
+    
+    fn build_chart<DB: DrawingBackend>(&self, mut builder: ChartBuilder<DB>) {
+        let start = self.data_points[0].0;
+        let end = self.data_points.back().unwrap().0;
+
+        let mut ctx = builder
+            .set_label_area_size(LabelAreaPosition::Top, -200i32)
+            .caption("ECG Data", ("sans-serif", 30u32))
+            .build_cartesian_2d(0.0..100.0f64, -1000.0..1000.0f64)
+            .unwrap();
+
+        ctx.configure_mesh()
+            .draw()
+            .unwrap();
+
+        ctx.draw_series(
+            LineSeries::new(
+                (start..end).map(|p| (p as f64, self.data_points[(p - start) as usize].1 as f64)),
+                //self.data_points.iter().map(|p| (p.0, p.1)),
+                &BLACK
+        )).expect("Error making graph");
+    }
 }
 
 impl EcgChart {
     pub fn new() -> EcgChart {
-        Self
+        EcgChart::default()
     }
 
     fn view(&mut self) -> Element<Message> {
@@ -104,5 +133,16 @@ impl EcgChart {
             .height(Length::Fill);
 
         chart.into()
+    }
+
+    fn init_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let mut rdr = ReaderBuilder::new().from_path("output/test.csv").unwrap();
+
+        for record in rdr.records() {
+            let result = record?;
+            self.data_points.push_back((result[0].parse()?, result[1].parse::<f32>()? * 100.0));
+        }
+
+        Ok(())
     }
 }
