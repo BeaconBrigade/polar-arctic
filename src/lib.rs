@@ -104,13 +104,14 @@ impl Chart<Message> for EcgChart {
         let end = self.data_points.back().unwrap().0;
 
         let mut ctx = builder
-            .set_label_area_size(LabelAreaPosition::Top, -1i32)
-            .set_label_area_size(LabelAreaPosition::Left, 40i32)
+            .set_label_area_size(LabelAreaPosition::Bottom, -181)
+            .set_label_area_size(LabelAreaPosition::Left, 40)
             .caption("ECG Data", ("sans-serif", 30u32))
             .build_cartesian_2d(0..100u64, -1000.0..1000.0f64)
             .unwrap();
 
         ctx.configure_mesh()
+            .set_tick_mark_size(LabelAreaPosition::Bottom, 5)
             .draw()
             .unwrap();
 
@@ -129,8 +130,8 @@ impl EcgChart {
 
     fn view(&mut self) -> Element<Message> {
         let chart = ChartWidget::new(self)
-            .width(Length::Fill)
-            .height(Length::Fill);
+            .width(Length::Units(400))
+            .height(Length::Units(400));
 
         chart.into()
     }
