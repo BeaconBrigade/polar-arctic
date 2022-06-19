@@ -1,6 +1,6 @@
 use iced::{
-    HorizontalAlignment, executor, text_input, Application, Column, 
-    Command, Element, Length, Subscription, Text, TextInput, Clipboard
+    alignment, executor, text_input, Application, Column, 
+    Command, Element, Length, Subscription, Text, TextInput,
 };
 use std::time;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
@@ -42,7 +42,7 @@ impl Application for Menu {
         "Polar-Arctic".to_owned()
     }
 
-    fn update(&mut self, message: Message, _clipboard: &mut Clipboard) -> Command<Message> {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::None => {}
             Message::Tick => {}
@@ -66,7 +66,7 @@ impl Application for Menu {
         let title = Text::new("Polar-Arctic")
             .width(Length::Fill)
             .size(60)
-            .horizontal_alignment(HorizontalAlignment::Center);
+            .horizontal_alignment(alignment::Horizontal::Center);
 
         let input = TextInput::new(
             &mut self.device_input,
