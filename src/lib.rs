@@ -1,12 +1,12 @@
-use iced::{
-    alignment, executor, text_input, Application, Column, 
-    Command, Element, Length, Subscription, Text, TextInput,
-};
-use std::time;
-use plotters_iced::{Chart, ChartWidget, DrawingBackend};
-use plotters::prelude::*;
-use std::collections::VecDeque;
 use csv::ReaderBuilder;
+use iced::{
+    alignment, executor, text_input, Application, Column, Command, Element, Length, Subscription,
+    Text, TextInput,
+};
+use plotters::prelude::*;
+use plotters_iced::{Chart, ChartWidget, DrawingBackend};
+use std::collections::VecDeque;
+use std::time;
 
 mod blue;
 
@@ -74,9 +74,9 @@ impl Application for Menu {
             &self.device_id,
             Message::InputChanged,
         )
-            .padding(15)
-            .size(25)
-            .on_submit(Message::CreateSensor);
+        .padding(15)
+        .size(25)
+        .on_submit(Message::CreateSensor);
 
         let testing = Text::new(&self.device_id).size(25).width(Length::Fill);
 
@@ -94,11 +94,10 @@ impl Application for Menu {
 
 #[derive(Default)]
 pub struct EcgChart {
-    data_points: VecDeque<(u64, f32)>
+    data_points: VecDeque<(u64, f32)>,
 }
 
 impl Chart<Message> for EcgChart {
-    
     fn build_chart<DB: DrawingBackend>(&self, mut builder: ChartBuilder<DB>) {
         let start = self.data_points[0].0;
         let end = self.data_points.back().unwrap().0;
@@ -115,11 +114,11 @@ impl Chart<Message> for EcgChart {
             .draw()
             .unwrap();
 
-        ctx.draw_series(
-            LineSeries::new(
-                (start..end).map(|p| (p, self.data_points[(p - start) as usize].1 as f64)),
-                &BLACK
-        )).expect("Error making graph");
+        ctx.draw_series(LineSeries::new(
+            (start..end).map(|p| (p, self.data_points[(p - start) as usize].1 as f64)),
+            &BLACK,
+        ))
+        .expect("Error making graph");
     }
 }
 
