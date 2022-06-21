@@ -1,12 +1,14 @@
 use csv::ReaderBuilder;
 use iced::{
     alignment, executor, text_input, Application, Column, Command, Element, Length, Subscription,
-    Text, TextInput, Row, Rule,
+    Text, TextInput, Row, Rule, Button, button,
 };
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
 use std::collections::VecDeque;
+
 use std::time;
+use chrono::{DateTime, Utc};
 
 mod blue;
 
@@ -16,7 +18,7 @@ pub struct Menu {
     device_id: String,
     sensor: Option<()>, // TODO - fill with actual arctic sensor when update is made
     chart: EcgChart,
-    meta: Option<Meta>,
+    meta_state: MetaState,
 }
 
 #[derive(Debug, Clone)]
@@ -26,6 +28,7 @@ pub enum Message {
     InputChanged(String),
     CreateSensor,
     NewMeta,
+    ChangeMeta(WhichMeta, String),
 }
 
 impl Application for Menu {
@@ -61,6 +64,14 @@ impl Application for Menu {
                 println!("Sensor created!");
             }
             Message::NewMeta => {}
+            Message::ChangeMeta(which, msg) => {
+                match which {
+                    WhichMeta::Id => self.meta_state.meta_data.id = msg,
+                    WhichMeta::Session => self.meta_state.meta_data.session = msg,
+                    WhichMeta::Trial => self.meta_state.meta_data.trial = msg,
+                    WhichMeta::Description => self.meta_state.meta_data.description = msg,
+                }
+            }
         }
 
         Command::none()
@@ -107,7 +118,8 @@ impl Application for Menu {
             .spacing(20)
             .width(Length::Fill)
             .max_width(1000)
-            .push(meta_header);
+            .push(meta_header)
+            .push(self.meta_state.view());
 
 
         // full view
@@ -198,34 +210,89 @@ impl Chart<Message> for EcgChart {
 
 // Store meta-data about this run
 struct Meta {
-    pub first_name: String,
-    pub last_name: String,
-    pub group_number: i8,
+    pub id: String,
+    pub session: String,
+    pub trial: String,
+    pub description: String,
+    pub date: DateTime<Utc>,
 }
 
-// Store errors converting input to meta data
-enum ParseError {
-    First,
-    Last,
-    GroupNumber,
+impl Default for Meta {
+    fn default() -> Self {
+        Meta {
+            id: "".to_string(),
+            session: "".to_string(),
+            trial: "".to_string(),
+            description: "".to_string(),
+            date: Utc::now(),
+        }
+    }
 }
 
-impl TryFrom<[&str; 3]> for Meta {
-    type Error = ParseError;
+// Which kind of metadata to change 
+#[derive(Debug, Clone, Copy)]
+pub enum WhichMeta {
+    Id,
+    Session,
+    Trial,
+    Description,
+}
 
-    fn try_from(data: [&str; 3]) -> Result<Self, Self::Error> {
-        Ok(Self {
-            first_name: if !data[0].is_empty() {
-                data[0].to_owned()
-            } else {
-                return Err(ParseError::First);
-            },
-            last_name: if !data[1].is_empty() {
-                data[1].to_owned()
-            } else {
-                return Err(ParseError::Last);
-            },
-            group_number: data[2].parse().map_err(|_| ParseError::GroupNumber)?,
-        })
+// Store states for meta data
+#[derive(Default)]
+struct MetaState {
+    id_state: text_input::State,
+    session_state: text_input::State,
+    trial_state: text_input::State,
+    description_state: text_input::State,
+    submit_state: button::State,
+    pub meta_data: Meta,
+}
+
+impl MetaState {
+    fn view(&mut self) -> Element<Message> {
+        let id = TextInput::new(
+            &mut self.id_state,
+            "Participant ID",
+            &self.meta_data.id,
+            |s| Message::ChangeMeta(WhichMeta::Id, s),
+        );
+
+        let session = TextInput::new(
+            &mut self.session_state,
+            "Session Number",
+            &self.meta_data.session,
+            |s| Message::ChangeMeta(WhichMeta::Session, s),
+        );
+
+        let trial = TextInput::new(
+            &mut self.trial_state,
+            "Trial number",
+            &self.meta_data.trial,
+            |s| Message::ChangeMeta(WhichMeta::Trial, s),
+        );
+
+        let description = TextInput::new(
+            &mut self.description_state,
+            "Description/Notes",
+            &self.meta_data.description,
+            |s| Message::ChangeMeta(WhichMeta::Description, s),
+        );
+
+        let submit = Button::new(
+            &mut self.submit_state, 
+            Text::new("Submit"),
+        );
+
+        Column::new()
+            .spacing(20)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .push(id)
+            .push(session)
+            .push(trial)
+            .push(description)
+            .push(submit)
+            .into()
     }
 }

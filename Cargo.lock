@@ -1733,6 +1733,7 @@ dependencies = [
 name = "polar-arctic"
 version = "0.1.0"
 dependencies = [
+ "chrono",
  "csv",
  "iced",
  "plotters",
