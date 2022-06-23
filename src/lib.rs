@@ -282,7 +282,7 @@ impl MetaState {
         let submit = Button::new(
             &mut self.submit_state, 
             Text::new("Submit"),
-        );
+        ).on_press(Message::NewMeta);
 
         Column::new()
             .spacing(20)
