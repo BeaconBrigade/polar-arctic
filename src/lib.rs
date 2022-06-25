@@ -1,5 +1,6 @@
 use iced::{
-    alignment, executor, Application, Column, Command, Element, Length, Subscription, Text, Rule,
+    self, Application, Column, Length, Subscription, Rule, alignment, executor, 
+    Command, Element, Text,
 };
 use std::time;
 
@@ -22,7 +23,7 @@ pub enum Views {
 }
 
 impl Views {
-    fn view(&mut self) -> Element<Message> {
+    fn view(&mut self) -> iced::Element<Message> {
         match self {
             Views::Menu(menu) => menu.view(),
             Views::Data(data) => data.view(),
