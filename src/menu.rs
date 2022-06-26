@@ -1,6 +1,8 @@
 use iced::{
-    text_input, Column, Element, Length,
-    Text, TextInput, Button, button,
+    Element, Length, Column, Text,
+};
+use iced::pure::{
+    self, button, text_input, Pure, State, column,
 };
 use super::Message;
 use chrono::{DateTime, Utc};
@@ -8,11 +10,12 @@ use chrono::{DateTime, Utc};
 #[derive(Default)]
 pub struct Menu {
     meta_state: MetaState,
+    state: State,
 }
 
 impl Menu {
     pub fn new() -> Self {
-        Self { meta_state: MetaState::default() }
+        Self { meta_state: MetaState::default(), state: State::new() }
     }
 
     pub fn state(&mut self) -> &mut MetaState {
@@ -25,7 +28,7 @@ impl Menu {
 
         Column::new()
             .push(title)
-            .push(self.meta_state.view())
+            .push(Pure::new(&mut self.state, self.meta_state.view()))
             .into()
     }
 
@@ -91,50 +94,40 @@ pub enum WhichMeta {
 // Store states for meta data
 #[derive(Default)]
 pub struct MetaState {
-    id_state: text_input::State,
-    session_state: text_input::State,
-    trial_state: text_input::State,
-    description_state: text_input::State,
-    submit_state: button::State,
     pub meta_data: Meta,
 }
 
 impl MetaState {
-    fn view(&mut self) -> Element<Message> {
-        let id = TextInput::new(
-            &mut self.id_state,
+    fn view(&mut self) -> pure::Element<Message> {
+        let id = text_input(
             "Participant ID",
             &self.meta_data.id,
             |s| Message::ChangeMeta(WhichMeta::Id, s),
         );
 
-        let session = TextInput::new(
-            &mut self.session_state,
+        let session = text_input(
             "Session Number",
             &self.meta_data.session,
             |s| Message::ChangeMeta(WhichMeta::Session, s),
         );
 
-        let trial = TextInput::new(
-            &mut self.trial_state,
+        let trial = text_input(
             "Trial number",
             &self.meta_data.trial,
             |s| Message::ChangeMeta(WhichMeta::Trial, s),
         );
 
-        let description = TextInput::new(
-            &mut self.description_state,
+        let description = text_input(
             "Description/Notes",
             &self.meta_data.description,
             |s| Message::ChangeMeta(WhichMeta::Description, s),
         );
 
-        let submit = Button::new(
-            &mut self.submit_state, 
+        let submit = button(
             Text::new("Submit"),
         ).on_press(Message::NewMeta);
 
-        Column::new()
+        column()
             .spacing(20)
             .width(Length::Fill)
             .height(Length::Fill)

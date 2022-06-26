@@ -1,6 +1,8 @@
+use iced::pure::{
+    text_input, button, widget::Text, column, row, Pure, State,
+};
 use iced::{
-    text_input, Column, Element, Length, Row,
-    TextInput, Button, button, Text, Rule,
+    Length, Rule, Column,
 };
 use csv::ReaderBuilder;
 use plotters::prelude::*;
@@ -9,12 +11,20 @@ use std::collections::VecDeque;
 
 use super::{Message, WhichView};
 
-#[derive(Default)]
 pub struct Data {
     chart: EcgChart,
-    device_input: text_input::State,
     device_id: String,
-    ret_state: button::State,
+    state: State,
+}
+
+impl Default for Data {
+    fn default() -> Self {
+        Self {
+            chart: EcgChart::new().unwrap(),
+            device_id: "".to_string(),
+            state: State::new(),
+        }
+    }
 }
 
 impl Data {
@@ -22,19 +32,17 @@ impl Data {
         Self { chart: EcgChart::new().unwrap(), ..Default::default() }
     }
 
-    pub fn view(&mut self) -> Element<Message> {
-        let back = Button::new(
-            &mut self.ret_state,
+    pub fn view(&mut self) -> iced::Element<Message> {
+        let back = button(
             Text::new("Back to menu").size(20),
         ).on_press(Message::SwitchView(WhichView::Menu));
 
-        let header = Row::new()
+        let header = row()
             .push(Text::new("Data"))
             .push(Rule::horizontal(0))
             .push(back);
 
-        let input = TextInput::new(
-            &mut self.device_input,
+        let input = text_input(
             "Device ID",
             &self.device_id,
             Message::NewDeviceID,
@@ -44,13 +52,19 @@ impl Data {
         .on_submit(Message::CreateSensor);
 
         // Data side
-        Column::new()
+        let view = column()
             .spacing(20)
             .width(Length::Fill)
             .max_width(1000)
             .push(header)
             .push(Rule::horizontal(10))
-            .push(input)
+            .push(input);
+
+        let pure = Pure::new(&mut self.state, view);
+
+        Column::new()
+            .spacing(20)
+            .push(pure)
             .push(self.chart.view())
             .into()
     }
@@ -79,7 +93,7 @@ impl EcgChart {
     }
 
     // Draw chart
-    fn view(&mut self) -> Element<Message> {
+    fn view(&mut self) -> iced::Element<Message> {
         let chart = ChartWidget::new(self)
             .width(Length::Units(400))
             .height(Length::Units(400));
@@ -132,6 +146,3 @@ impl Chart<Message> for EcgChart {
         .expect("Error making graph");
     }
 }
-
-
-
