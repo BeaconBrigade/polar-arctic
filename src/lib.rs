@@ -1,22 +1,29 @@
 use iced::{
-    self, alignment, executor, Application, Column, Command, Element, Length, Rule, Subscription,
-    Text,
+    self, Application, Column, Length, Subscription, Rule, alignment, executor, 
+    Command, Element, Text, Container, pure::{Pure, State},
 };
+use iced_aw::{pure::Card, Modal};
 use std::time;
 
 mod blue;
 mod data;
 mod menu;
+mod modal;
 
 use data::Data;
 use menu::{Menu, WhichMeta};
+use modal::{get_body, PopupMessage};
 
+// Main Application
 #[derive(Default)]
 pub struct App {
     sensor: Option<()>, // TODO - fill with actual arctic sensor when update is made
     view: Views,
+    which_err: PopupMessage,
+    modal_state: iced_aw::modal::State<State>,
 }
 
+// Possible views to show the user
 pub enum Views {
     Menu(Box<Menu>),
     Data(Box<Data>),
@@ -61,6 +68,7 @@ pub enum Message {
     NewMeta,
     ChangeMeta(WhichMeta, String),
     SwitchView(WhichView),
+    CloseModal,
 }
 
 impl Application for App {
@@ -95,11 +103,14 @@ impl Application for App {
             }
             Message::NewMeta => {
                 if let Views::Menu(meta) = &mut self.view {
-                    if meta.verify().is_ok() {
+                    if let Err(which) = meta.verify() {
+                        self.modal_state.show(true);
+                        self.which_err = which.into();
+                    } else {
                         self.update(Message::SwitchView(WhichView::Data));
+                        // TODO - Update output file here
                     }
                 }
-                // TODO - Update output file here
             }
             Message::ChangeMeta(which, msg) => {
                 if let Views::Menu(meta) = &mut self.view {
@@ -109,11 +120,15 @@ impl Application for App {
             Message::SwitchView(view) => {
                 self.view = view.into();
             }
+            Message::CloseModal => {
+                self.modal_state.show(false);
+            }
         }
 
         Command::none()
     }
 
+    // Tick every 16ms to update graph
     fn subscription(&self) -> Subscription<Message> {
         iced::time::every(time::Duration::from_millis(16)).map(|_| Message::Tick)
     }
@@ -126,10 +141,30 @@ impl Application for App {
 
         let body = self.view.view();
 
-        Column::new()
-            .push(title)
-            .push(Rule::horizontal(10))
-            .push(body)
-            .into()
+        let content = Container::new(
+            Column::new()
+                .push(title)
+                .push(Rule::horizontal(10))
+                .push(body)
+        );
+
+        Modal::new(&mut self.modal_state, content,
+            |state| {
+                let body = iced::pure::widget::Text::new(get_body(self.which_err));
+
+                let card = Card::new(
+                    iced::pure::widget::Text::new("Error Occured"),
+                    body,
+                )
+                .max_width(300)
+                .on_close(Message::CloseModal);
+
+                Pure::new(state, card)
+                    .into()
+            }
+        )
+        .backdrop(Message::CloseModal)
+        .on_esc(Message::CloseModal)
+        .into()
     }
 }
