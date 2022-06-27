@@ -1,10 +1,6 @@
-use iced::pure::{
-    text_input, button, widget::Text, column, row, Pure, State,
-};
-use iced::{
-    Length, Rule, Column,
-};
 use csv::ReaderBuilder;
+use iced::pure::{button, column, row, text_input, widget::Text, Pure, State};
+use iced::{Column, Length, Rule};
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
 use std::collections::VecDeque;
@@ -29,27 +25,25 @@ impl Default for Data {
 
 impl Data {
     pub fn new() -> Self {
-        Self { chart: EcgChart::new().unwrap(), ..Default::default() }
+        Self {
+            chart: EcgChart::new().unwrap(),
+            ..Default::default()
+        }
     }
 
     pub fn view(&mut self) -> iced::Element<Message> {
-        let back = button(
-            Text::new("Back to menu").size(20),
-        ).on_press(Message::SwitchView(WhichView::Menu));
+        let back = button(Text::new("Back to menu").size(20))
+            .on_press(Message::SwitchView(WhichView::Menu));
 
         let header = row()
             .push(Text::new("Data"))
             .push(Rule::horizontal(0))
             .push(back);
 
-        let input = text_input(
-            "Device ID",
-            &self.device_id,
-            Message::NewDeviceID,
-        )
-        .padding(15)
-        .size(20)
-        .on_submit(Message::CreateSensor);
+        let input = text_input("Device ID", &self.device_id, Message::NewDeviceID)
+            .padding(15)
+            .size(20)
+            .on_submit(Message::CreateSensor);
 
         // Data side
         let view = column()

@@ -1,15 +1,15 @@
 use iced::{
-    self, Application, Column, Length, Subscription, Rule, alignment, executor, 
-    Command, Element, Text,
+    self, alignment, executor, Application, Column, Command, Element, Length, Rule, Subscription,
+    Text,
 };
 use std::time;
 
 mod blue;
-mod menu;
 mod data;
+mod menu;
 
-use menu::{Menu, WhichMeta};
 use data::Data;
+use menu::{Menu, WhichMeta};
 
 #[derive(Default)]
 pub struct App {
@@ -69,10 +69,7 @@ impl Application for App {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (
-            App::default(),
-            Command::none(),
-        )
+        (App::default(), Command::none())
     }
 
     fn title(&self) -> String {
@@ -121,7 +118,6 @@ impl Application for App {
         iced::time::every(time::Duration::from_millis(16)).map(|_| Message::Tick)
     }
 
-
     fn view(&mut self) -> Element<'_, Message> {
         let title = Text::new("Polar-Arctic")
             .width(Length::Fill)
@@ -137,4 +133,3 @@ impl Application for App {
             .into()
     }
 }
-
