@@ -60,6 +60,7 @@ impl Menu {
 }
 
 // Store meta-data about this run
+#[derive(Debug, Clone)]
 pub struct Meta {
     pub id: String,
     pub session: String,
@@ -80,6 +81,12 @@ impl Default for Meta {
     }
 }
 
+impl ToString for Meta {
+    fn to_string(&self) -> String {
+        format!("{},{},{},{},{}\n", self.id, self.session, self.trial, self.date, self.description)
+    }
+}
+
 // Which kind of metadata to change
 #[derive(Debug, Clone, Copy)]
 pub enum WhichMeta {
@@ -90,7 +97,7 @@ pub enum WhichMeta {
 }
 
 // Store states for meta data
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct MetaState {
     pub meta_data: Meta,
 }

@@ -12,12 +12,14 @@ mod modal;
 
 use data::Data;
 use menu::{Menu, WhichMeta};
-use modal::{get_body, PopupMessage};
+use modal::{get_body, PopupMessage, arctic};
+use blue::{SensorManager, new_device, update};
+
 
 // Main Application
 #[derive(Default)]
 pub struct App {
-    sensor: Option<()>, // TODO - fill with actual arctic sensor when update is made
+    sensor_manager: SensorManager,
     view: Views,
     which_err: PopupMessage,
     modal_state: iced_aw::modal::State<State>,
@@ -65,15 +67,18 @@ pub enum Message {
     Tick,
     NewDeviceID(String),
     CreateSensor,
+    SetSensor(()),
     NewMeta,
     ChangeMeta(WhichMeta, String),
     SwitchView(WhichView),
     CloseModal,
+    Popup(PopupMessage),
 }
 
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
+
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
@@ -86,46 +91,83 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::None => {}
+            Message::None => {
+                Command::none()
+            }
             Message::Tick => {
                 if let Views::Data(data) = &mut self.view {
                     data.update();
                 }
+                Command::none()
             }
             Message::NewDeviceID(msg) => {
                 if let Views::Data(data) = &mut self.view {
                     data.update_id(msg);
                 }
+                Command::none()
             }
             Message::CreateSensor => {
-                // Construct sensor
-                println!("Sensor created!");
+                // Replace with new using user selected options 
+                if let Views::Data(data) = &mut self.view {
+                    Command::perform(
+                        new_device(data.id().clone()),
+                        |res| {
+                            if let Ok(sensor) = res {
+                                Message::SetSensor(sensor)
+                            } else {
+                                Message::Popup(PopupMessage::Polar(arctic::Error::Dumb))
+                            }
+                        }
+                    )
+                } else {
+                    Command::none()
+                }
+            }
+            Message::SetSensor(sensor) => {
+                self.sensor_manager.device(sensor);
+                Command::none()
             }
             Message::NewMeta => {
                 if let Views::Menu(meta) = &mut self.view {
                     if let Err(which) = meta.verify() {
-                        self.modal_state.show(true);
-                        self.which_err = which.into();
+                        self.update(Message::Popup(which.into()));
                     } else {
+                        let data = meta.state().meta_data.clone();
                         self.update(Message::SwitchView(WhichView::Data));
-                        // TODO - Update output file here
+                        return Command::perform(
+                            update(true, true, true, data), // FIX LATER
+                            |res| {
+                                if res.is_err() {
+                                    Message::Popup(PopupMessage::Io)
+                                } else {
+                                    Message::None
+                                }
+                            }
+                        );
                     }
                 }
+                Command::none()
             }
             Message::ChangeMeta(which, msg) => {
                 if let Views::Menu(meta) = &mut self.view {
                     meta.change_data(which, msg);
                 }
+                Command::none()
             }
             Message::SwitchView(view) => {
                 self.view = view.into();
+                Command::none()
             }
             Message::CloseModal => {
                 self.modal_state.show(false);
+                Command::none()
+            }
+            Message::Popup(which) => {
+                self.modal_state.show(true);
+                self.which_err = which;
+                Command::none()
             }
         }
-
-        Command::none()
     }
 
     // Tick every 16ms to update graph

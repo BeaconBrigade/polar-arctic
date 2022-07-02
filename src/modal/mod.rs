@@ -5,12 +5,15 @@ mod trial;
 mod session;
 mod description;
 mod device;
+mod ble;
 
 // Decide which card to send
 #[derive(Debug, Clone, Copy)]
 pub enum PopupMessage {
     Meta(WhichMeta),
     DeviceID,
+    Polar(arctic::Error),
+    Io,
 }
 
 impl Default for PopupMessage {
@@ -38,5 +41,22 @@ pub fn get_body(ty: PopupMessage) -> String {
         PopupMessage::DeviceID => {
             device::view()
         }
+        PopupMessage::Polar(err) => {
+            match err {
+                arctic::Error::Dumb => ble::view(err),
+                arctic::Error::Stupid => ble::view(err),
+            }
+        }
+        PopupMessage::Io => {
+            "IO error, output directory not found.".to_string()
+        }
+    }
+}
+
+pub mod arctic {
+    #[derive(Debug, Clone, Copy)]
+    pub enum Error {
+        Dumb,
+        Stupid,
     }
 }
