@@ -67,6 +67,10 @@ impl Data {
         self.device_id = msg;
     }
 
+    pub fn id(&mut self) -> &mut String {
+        &mut self.device_id
+    }
+
     pub fn update(&mut self) {
         self.chart.update();
     }

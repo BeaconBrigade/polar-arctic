@@ -21,3 +21,6 @@ iced_aw = { version = "0.2", features = ["card", "pure", "modal" ] }
 plotters = "0.3"
 csv = "1.1"
 chrono = "0.4.19"
+tokio = { version = "1.19.2", features = ["full"] }
+arctic = "1.0.0"
+futures = "0.3.21"
