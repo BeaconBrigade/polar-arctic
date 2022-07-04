@@ -4,6 +4,8 @@ use iced::{
 };
 use iced_aw::{pure::Card, Modal};
 use std::time;
+use std::sync::Arc;
+use tokio::sync::Mutex;
 
 mod blue;
 mod data;
@@ -12,17 +14,17 @@ mod modal;
 
 use data::Data;
 use menu::{Menu, WhichMeta};
-use modal::{get_body, PopupMessage, arctic};
-use blue::{SensorManager, new_device, update};
-
+use modal::{get_modal, PopupMessage};
+use blue::{SensorManager, new_device, update, setting::Setting};
 
 // Main Application
 #[derive(Default)]
 pub struct App {
-    sensor_manager: SensorManager,
+    sensor_manager: Arc<Mutex<SensorManager>>,
     view: Views,
     which_err: PopupMessage,
     modal_state: iced_aw::modal::State<State>,
+    running: bool,
 }
 
 // Possible views to show the user
@@ -67,12 +69,12 @@ pub enum Message {
     Tick,
     NewDeviceID(String),
     CreateSensor,
-    SetSensor(()),
     NewMeta,
     ChangeMeta(WhichMeta, String),
     SwitchView(WhichView),
     CloseModal,
     Popup(PopupMessage),
+    Connected,
 }
 
 impl Application for App {
@@ -108,24 +110,27 @@ impl Application for App {
             }
             Message::CreateSensor => {
                 // Replace with new using user selected options 
-                if let Views::Data(data) = &mut self.view {
-                    Command::perform(
-                        new_device(data.id().clone()),
-                        |res| {
-                            if let Ok(sensor) = res {
-                                Message::SetSensor(sensor)
-                            } else {
-                                Message::Popup(PopupMessage::Polar(arctic::Error::Dumb))
+                if !self.running {
+                    if let Views::Data(data) = &mut self.view {
+                        let other_me = Arc::clone(&self.sensor_manager);
+                        Command::perform(
+                            new_device(data.id().clone(), Setting::new(true, true, true)), // FIX
+                            move |res| {
+                                match res {
+                                    Ok(sensor) => {
+                                        futures::executor::block_on(other_me.lock()).sensor = Some(sensor);
+                                        Message::Popup(PopupMessage::Connected)
+                                    }
+                                    Err(e) => Message::Popup(PopupMessage::Polar(e.to_string()))
+                                }
                             }
-                        }
-                    )
+                        )
+                    } else {
+                        Command::none()
+                    }
                 } else {
                     Command::none()
                 }
-            }
-            Message::SetSensor(sensor) => {
-                self.sensor_manager.device(sensor);
-                Command::none()
             }
             Message::NewMeta => {
                 if let Views::Menu(meta) = &mut self.view {
@@ -135,10 +140,10 @@ impl Application for App {
                         let data = meta.state().meta_data.clone();
                         self.update(Message::SwitchView(WhichView::Data));
                         return Command::perform(
-                            update(true, true, true, data), // FIX LATER
+                            update(Setting::new(true, true, true), data), // FIX LATER
                             |res| {
-                                if res.is_err() {
-                                    Message::Popup(PopupMessage::Io)
+                                if let Err(err) = res {
+                                    Message::Popup(PopupMessage::Io(err.to_string()))
                                 } else {
                                     Message::None
                                 }
@@ -167,6 +172,22 @@ impl Application for App {
                 self.which_err = which;
                 Command::none()
             }
+            Message::Connected => {
+                let other_me = Arc::clone(&self.sensor_manager);
+                Command::perform(
+                    tokio::spawn(
+                        async move {
+                            other_me.lock().await.start().await
+                        }),
+                    |res| {
+                        if let Err(e) = res {
+                            Message::Popup(PopupMessage::Polar(e.to_string()))
+                        } else {
+                            Message::None
+                        }
+                    }
+                )
+            }
         }
     }
 
@@ -192,10 +213,11 @@ impl Application for App {
 
         Modal::new(&mut self.modal_state, content,
             |state| {
-                let body = iced::pure::widget::Text::new(get_body(self.which_err));
+                let (title, body) = get_modal(self.which_err.clone());
+                let body = iced::pure::widget::Text::new(body);
 
                 let card = Card::new(
-                    iced::pure::widget::Text::new("Error Occured"),
+                    iced::pure::widget::Text::new(title),
                     body,
                 )
                 .max_width(300)

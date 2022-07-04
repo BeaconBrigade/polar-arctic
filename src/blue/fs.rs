@@ -19,8 +19,7 @@ impl ToString for MeasureType {
 }
 
 // Create/Truncate all data
-pub async fn init(settings: Setting, metadata: Meta) -> Result<(), Error> {
-    let (hr, ecg, acc) = settings.get_settings();
+pub async fn init(Setting {hr, ecg, acc} : Setting, metadata: Meta) -> Result<(), Error> {
 
     if hr {
         add_headers(MeasureType::Hr, "output/hr.csv", metadata.to_string()).await?;

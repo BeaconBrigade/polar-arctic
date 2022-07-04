@@ -5,15 +5,15 @@ mod trial;
 mod session;
 mod description;
 mod device;
-mod ble;
 
 // Decide which card to send
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum PopupMessage {
     Meta(WhichMeta),
     DeviceID,
-    Polar(arctic::Error),
-    Io,
+    Polar(String),
+    Io(String),
+    Connected,
 }
 
 impl Default for PopupMessage {
@@ -28,35 +28,42 @@ impl From<WhichMeta> for PopupMessage {
     }
 }
 
-pub fn get_body(ty: PopupMessage) -> String {
+pub fn get_modal(ty: PopupMessage) -> (String, String) {
     match ty {
         PopupMessage::Meta(err) => {
-            match err {
-                WhichMeta::Id => id::view(),
-                WhichMeta::Trial => trial::view(),
-                WhichMeta::Session => session::view(),
-                WhichMeta::Description => description::view(),
-            }
+            (
+                "Form not completed".to_string(),
+                match err {
+                    WhichMeta::Id => id::view(),
+                    WhichMeta::Trial => trial::view(),
+                    WhichMeta::Session => session::view(),
+                    WhichMeta::Description => description::view(),
+                }
+            )
         }
         PopupMessage::DeviceID => {
-            device::view()
+            (
+                "Invalid device ID".to_string(),
+                device::view()
+            )
         }
         PopupMessage::Polar(err) => {
-            match err {
-                arctic::Error::Dumb => ble::view(err),
-                arctic::Error::Stupid => ble::view(err),
-            }
+            (
+                "Bluetooth error".to_string(),
+                err
+            )
         }
-        PopupMessage::Io => {
-            "IO error, output directory not found.".to_string()
+        PopupMessage::Io(err) => {
+            (
+                "Error finding output file".to_string(),
+                err
+            )
         }
-    }
-}
-
-pub mod arctic {
-    #[derive(Debug, Clone, Copy)]
-    pub enum Error {
-        Dumb,
-        Stupid,
+        PopupMessage::Connected => {
+            (
+                "Device connected!".to_string(),
+                "Device connected!".to_string()
+            )
+        }
     }
 }

@@ -1,38 +1,69 @@
-use crate::menu::Meta;
 mod fs;
-mod setting;
+pub mod setting;
 
 use setting::Setting;
 use fs::init;
-use super::modal::arctic;
+use crate::menu::Meta;
+use arctic::{Error, PolarSensor, NotifyStream, H10MeasurementType, async_trait, EventHandler};
 
 // manage Bluetooth connections
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Default)]
 pub struct SensorManager {
     settings: Setting,
-    event_handler: Handler,
-    sensor: Option<()>,
+    pub sensor: Option<PolarSensor>
 }
 
-
 impl SensorManager {
-    
-    pub fn device(&mut self, sensor: ()) {
-        self.sensor = Some(sensor)
+    pub async fn start(&mut self) -> Result<(), Error> {
+        if let Some(sensor) = &mut self.sensor {
+            sensor.event_handler(Handler::new()); 
+            sensor.event_loop().await?;
+            Ok(())
+        } else {
+            Err(Error::NoDevice)
+        }
     }
 }
 
 // Create files for storing data
-pub async fn update(hr: bool, ecg: bool, acc: bool, metadata: Meta) -> Result<(), tokio::io::Error> {
-    let settings = Setting::new(hr, ecg, acc);
+pub async fn update(settings: Setting, metadata: Meta) -> Result<(), tokio::io::Error> {
     init(settings, metadata).await?;
-
     Ok(())
 }
 
 // Create new device
-pub async fn new_device(_id: String) -> Result<(), arctic::Error> {
-    Ok(())
+pub async fn new_device(id: String, Setting { hr, ecg, acc }: Setting) -> Result<PolarSensor, Error> {
+    let mut sensor = PolarSensor::new(id).await?;
+
+    while !sensor.is_connected().await {
+        match sensor.connect().await {
+            Err(Error::NoBleAdaptor) => {
+                eprintln!("No bluetooth adapter found");
+                return Err(Error::NoBleAdaptor);
+            }
+            Err(why) => {
+                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                eprintln!("Could not connect: {:?}", why)
+            }
+            _ => {}
+        }
+    }
+    
+    if hr {
+        sensor.subscribe(NotifyStream::HeartRate).await?;
+    }
+    if ecg || acc {
+        sensor.subscribe(NotifyStream::MeasurementData).await?;
+    }
+
+    if ecg {
+        sensor.data_type_push(H10MeasurementType::Ecg)
+    }
+    if acc {
+        sensor.data_type_push(H10MeasurementType::Acc);
+    }
+
+    Ok(sensor)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -50,6 +81,7 @@ impl Handler {
     }
 }
 
-/*impl EventHandler for Handler {
+#[async_trait]
+impl EventHandler for Handler {
 
-}*/
+}
