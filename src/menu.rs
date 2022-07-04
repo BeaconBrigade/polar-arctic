@@ -83,7 +83,10 @@ impl Default for Meta {
 
 impl ToString for Meta {
     fn to_string(&self) -> String {
-        format!("{},{},{},{},{}\n", self.id, self.session, self.trial, self.date, self.description)
+        format!(
+            "{},{},{},{},{}\n",
+            self.id, self.session, self.trial, self.date, self.description
+        )
     }
 }
 

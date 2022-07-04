@@ -1,10 +1,11 @@
 use iced::{
-    self, Application, Column, Length, Subscription, Rule, alignment, executor, 
-    Command, Element, Text, Container, pure::{Pure, State},
+    self, alignment, executor,
+    pure::{Pure, State},
+    Application, Column, Command, Container, Element, Length, Rule, Subscription, Text,
 };
 use iced_aw::{pure::Card, Modal};
-use std::time;
 use std::sync::Arc;
+use std::time;
 use tokio::sync::Mutex;
 
 mod blue;
@@ -12,10 +13,10 @@ mod data;
 mod menu;
 mod modal;
 
+use blue::{new_device, setting::Setting, update, SensorManager};
 use data::Data;
 use menu::{Menu, WhichMeta};
 use modal::{get_modal, PopupMessage};
-use blue::{SensorManager, new_device, update, setting::Setting};
 
 // Main Application
 #[derive(Default)]
@@ -93,9 +94,7 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::None => {
-                Command::none()
-            }
+            Message::None => Command::none(),
             Message::Tick => {
                 if let Views::Data(data) = &mut self.view {
                     data.update();
@@ -109,21 +108,20 @@ impl Application for App {
                 Command::none()
             }
             Message::CreateSensor => {
-                // Replace with new using user selected options 
+                // Replace with new using user selected options
                 if !self.running {
                     if let Views::Data(data) = &mut self.view {
                         let other_me = Arc::clone(&self.sensor_manager);
                         Command::perform(
                             new_device(data.id().clone(), Setting::new(true, true, true)), // FIX
-                            move |res| {
-                                match res {
-                                    Ok(sensor) => {
-                                        futures::executor::block_on(other_me.lock()).sensor = Some(sensor);
-                                        Message::Popup(PopupMessage::Connected)
-                                    }
-                                    Err(e) => Message::Popup(PopupMessage::Polar(e.to_string()))
+                            move |res| match res {
+                                Ok(sensor) => {
+                                    futures::executor::block_on(other_me.lock()).sensor =
+                                        Some(sensor);
+                                    Message::Popup(PopupMessage::Connected)
                                 }
-                            }
+                                Err(e) => Message::Popup(PopupMessage::Polar(e.to_string())),
+                            },
                         )
                     } else {
                         Command::none()
@@ -147,7 +145,7 @@ impl Application for App {
                                 } else {
                                     Message::None
                                 }
-                            }
+                            },
                         );
                     }
                 }
@@ -175,17 +173,14 @@ impl Application for App {
             Message::Connected => {
                 let other_me = Arc::clone(&self.sensor_manager);
                 Command::perform(
-                    tokio::spawn(
-                        async move {
-                            other_me.lock().await.start().await
-                        }),
+                    tokio::spawn(async move { other_me.lock().await.start().await }),
                     |res| {
                         if let Err(e) = res {
                             Message::Popup(PopupMessage::Polar(e.to_string()))
                         } else {
                             Message::None
                         }
-                    }
+                    },
                 )
             }
         }
@@ -208,25 +203,19 @@ impl Application for App {
             Column::new()
                 .push(title)
                 .push(Rule::horizontal(10))
-                .push(body)
+                .push(body),
         );
 
-        Modal::new(&mut self.modal_state, content,
-            |state| {
-                let (title, body) = get_modal(self.which_err.clone());
-                let body = iced::pure::widget::Text::new(body);
+        Modal::new(&mut self.modal_state, content, |state| {
+            let (title, body) = get_modal(self.which_err.clone());
+            let body = iced::pure::widget::Text::new(body);
 
-                let card = Card::new(
-                    iced::pure::widget::Text::new(title),
-                    body,
-                )
+            let card = Card::new(iced::pure::widget::Text::new(title), body)
                 .max_width(300)
                 .on_close(Message::CloseModal);
 
-                Pure::new(state, card)
-                    .into()
-            }
-        )
+            Pure::new(state, card).into()
+        })
         .backdrop(Message::CloseModal)
         .on_esc(Message::CloseModal)
         .into()

@@ -1,22 +1,22 @@
 mod fs;
 pub mod setting;
 
-use setting::Setting;
-use fs::init;
 use crate::menu::Meta;
-use arctic::{Error, PolarSensor, NotifyStream, H10MeasurementType, async_trait, EventHandler};
+use arctic::{async_trait, Error, EventHandler, H10MeasurementType, NotifyStream, PolarSensor};
+use fs::init;
+use setting::Setting;
 
 // manage Bluetooth connections
 #[derive(Default)]
 pub struct SensorManager {
     settings: Setting,
-    pub sensor: Option<PolarSensor>
+    pub sensor: Option<PolarSensor>,
 }
 
 impl SensorManager {
     pub async fn start(&mut self) -> Result<(), Error> {
         if let Some(sensor) = &mut self.sensor {
-            sensor.event_handler(Handler::new()); 
+            sensor.event_handler(Handler::new());
             sensor.event_loop().await?;
             Ok(())
         } else {
@@ -32,7 +32,10 @@ pub async fn update(settings: Setting, metadata: Meta) -> Result<(), tokio::io::
 }
 
 // Create new device
-pub async fn new_device(id: String, Setting { hr, ecg, acc }: Setting) -> Result<PolarSensor, Error> {
+pub async fn new_device(
+    id: String,
+    Setting { hr, ecg, acc }: Setting,
+) -> Result<PolarSensor, Error> {
     let mut sensor = PolarSensor::new(id).await?;
 
     while !sensor.is_connected().await {
@@ -48,7 +51,7 @@ pub async fn new_device(id: String, Setting { hr, ecg, acc }: Setting) -> Result
             _ => {}
         }
     }
-    
+
     if hr {
         sensor.subscribe(NotifyStream::HeartRate).await?;
     }
@@ -82,6 +85,4 @@ impl Handler {
 }
 
 #[async_trait]
-impl EventHandler for Handler {
-
-}
+impl EventHandler for Handler {}
