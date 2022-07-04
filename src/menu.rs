@@ -1,12 +1,13 @@
 use super::Message;
 use chrono::{DateTime, Utc};
-use iced::pure::{self, button, column, text_input, Pure, State};
+use iced::pure::{self, button, column, text_input, Pure, State, widget::Toggler};
 use iced::{Column, Element, Length, Text};
+use crate::blue::setting::Setting;
 
 #[derive(Default)]
 pub struct Menu {
-    meta_state: MetaState,
-    state: State,
+    pub meta_state: MetaState,
+    pub state: State,
 }
 
 impl Menu {
@@ -15,10 +16,6 @@ impl Menu {
             meta_state: MetaState::default(),
             state: State::new(),
         }
-    }
-
-    pub fn state(&mut self) -> &mut MetaState {
-        &mut self.meta_state
     }
 
     pub fn view(&mut self) -> Element<Message> {
@@ -32,10 +29,10 @@ impl Menu {
 
     pub fn change_data(&mut self, which: WhichMeta, msg: String) {
         match which {
-            WhichMeta::Id => self.state().meta_data.id = msg,
-            WhichMeta::Session => self.state().meta_data.session = msg,
-            WhichMeta::Trial => self.state().meta_data.trial = msg,
-            WhichMeta::Description => self.state().meta_data.description = msg,
+            WhichMeta::Id => self.meta_state.meta_data.id = msg,
+            WhichMeta::Session => self.meta_state.meta_data.session = msg,
+            WhichMeta::Trial => self.meta_state.meta_data.trial = msg,
+            WhichMeta::Description => self.meta_state.meta_data.description = msg,
         }
     }
 
@@ -67,6 +64,7 @@ pub struct Meta {
     pub trial: String,
     pub description: String,
     pub date: DateTime<Utc>,
+    pub settings: Setting,
 }
 
 impl Default for Meta {
@@ -77,6 +75,7 @@ impl Default for Meta {
             trial: "".to_string(),
             description: "".to_string(),
             date: Utc::now(),
+            settings: Setting::default(),
         }
     }
 }
@@ -97,6 +96,13 @@ pub enum WhichMeta {
     Session,
     Trial,
     Description,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Type {
+    Hr,
+    Acc,
+    Ecg,
 }
 
 // Store states for meta data
@@ -123,6 +129,10 @@ impl MetaState {
             Message::ChangeMeta(WhichMeta::Description, s)
         });
 
+        let hr_selector = Toggler::new(self.meta_data.settings.hr, Some("Heart rate".to_string()), |b| Message::UpdateSelection(Type::Hr, b));
+        let acc_selector = Toggler::new(self.meta_data.settings.acc, Some("Acceleration".to_string()), |b| Message::UpdateSelection(Type::Acc, b));
+        let ecg_selector = Toggler::new(self.meta_data.settings.ecg, Some("Electrocardiagram".to_string()), |b| Message::UpdateSelection(Type::Ecg, b));
+
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 
         column()
@@ -133,6 +143,9 @@ impl MetaState {
             .push(session)
             .push(trial)
             .push(description)
+            .push(hr_selector)
+            .push(acc_selector)
+            .push(ecg_selector)
             .push(submit)
             .into()
     }

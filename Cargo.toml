@@ -10,10 +10,6 @@ repository = "https://github.com/BeaconBrigade/polar-arctic.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[lib]
-name = "back"
-path = "src/lib.rs"
-
 [dependencies]
 plotters-iced = "0.3"
 iced = { version = "0.4", features = ["tokio", "canvas", "pure" ] }

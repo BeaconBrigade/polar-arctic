@@ -15,7 +15,7 @@ mod modal;
 
 use blue::{new_device, setting::Setting, update, SensorManager};
 use data::Data;
-use menu::{Menu, WhichMeta};
+use menu::{Menu, WhichMeta, Type};
 use modal::{get_modal, PopupMessage};
 
 // Main Application
@@ -76,6 +76,7 @@ pub enum Message {
     CloseModal,
     Popup(PopupMessage),
     Connected,
+    UpdateSelection(Type, bool),
 }
 
 impl Application for App {
@@ -135,10 +136,11 @@ impl Application for App {
                     if let Err(which) = meta.verify() {
                         self.update(Message::Popup(which.into()));
                     } else {
-                        let data = meta.state().meta_data.clone();
+                        let data = meta.meta_state.meta_data.clone();
+                        let set = meta.meta_state.meta_data.settings;
                         self.update(Message::SwitchView(WhichView::Data));
                         return Command::perform(
-                            update(Setting::new(true, true, true), data), // FIX LATER
+                            update(set, data), 
                             |res| {
                                 if let Err(err) = res {
                                     Message::Popup(PopupMessage::Io(err.to_string()))
@@ -183,12 +185,22 @@ impl Application for App {
                     },
                 )
             }
+            Message::UpdateSelection(t, b) => {
+                if let Views::Menu(menu) = &mut self.view {
+                    match t {
+                        Type::Hr => menu.meta_state.meta_data.settings.hr = b,
+                        Type::Acc => menu.meta_state.meta_data.settings.acc = b,
+                        Type::Ecg => menu.meta_state.meta_data.settings.ecg = b,
+                    }
+                }
+                Command::none()
+            }
         }
     }
 
     // Tick every 16ms to update graph
     fn subscription(&self) -> Subscription<Message> {
-        iced::time::every(time::Duration::from_millis(16)).map(|_| Message::Tick)
+        iced::time::every(time::Duration::from_millis(100)).map(|_| Message::Tick)
     }
 
     fn view(&mut self) -> Element<'_, Message> {

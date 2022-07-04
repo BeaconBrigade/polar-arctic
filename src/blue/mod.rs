@@ -9,11 +9,11 @@ use setting::Setting;
 // manage Bluetooth connections
 #[derive(Default)]
 pub struct SensorManager {
-    settings: Setting,
     pub sensor: Option<PolarSensor>,
 }
 
 impl SensorManager {
+    // Start the event loop
     pub async fn start(&mut self) -> Result<(), Error> {
         if let Some(sensor) = &mut self.sensor {
             sensor.event_handler(Handler::new());
