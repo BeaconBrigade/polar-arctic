@@ -15,7 +15,7 @@ mod modal;
 
 use blue::{new_device, setting::Setting, update, SensorManager};
 use data::Data;
-use menu::{Menu, WhichMeta, Type};
+use menu::{Menu, Type, WhichMeta};
 use modal::{get_modal, PopupMessage};
 
 // Main Application
@@ -139,16 +139,13 @@ impl Application for App {
                         let data = meta.meta_state.meta_data.clone();
                         let set = meta.meta_state.meta_data.settings;
                         self.update(Message::SwitchView(WhichView::Data));
-                        return Command::perform(
-                            update(set, data), 
-                            |res| {
-                                if let Err(err) = res {
-                                    Message::Popup(PopupMessage::Io(err.to_string()))
-                                } else {
-                                    Message::None
-                                }
-                            },
-                        );
+                        return Command::perform(update(set, data), |res| {
+                            if let Err(err) = res {
+                                Message::Popup(PopupMessage::Io(err.to_string()))
+                            } else {
+                                Message::None
+                            }
+                        });
                     }
                 }
                 Command::none()

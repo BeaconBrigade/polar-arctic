@@ -1,8 +1,8 @@
 use super::Message;
-use chrono::{DateTime, Utc};
-use iced::pure::{self, button, column, text_input, Pure, State, widget::Toggler};
-use iced::{Column, Element, Length, Text};
 use crate::blue::setting::Setting;
+use chrono::{DateTime, Utc};
+use iced::pure::{self, button, column, text_input, widget::Toggler, Pure, State};
+use iced::{Column, Element, Length, Text};
 
 #[derive(Default)]
 pub struct Menu {
@@ -129,9 +129,21 @@ impl MetaState {
             Message::ChangeMeta(WhichMeta::Description, s)
         });
 
-        let hr_selector = Toggler::new(self.meta_data.settings.hr, Some("Heart rate".to_string()), |b| Message::UpdateSelection(Type::Hr, b));
-        let acc_selector = Toggler::new(self.meta_data.settings.acc, Some("Acceleration".to_string()), |b| Message::UpdateSelection(Type::Acc, b));
-        let ecg_selector = Toggler::new(self.meta_data.settings.ecg, Some("Electrocardiagram".to_string()), |b| Message::UpdateSelection(Type::Ecg, b));
+        let hr_selector = Toggler::new(
+            self.meta_data.settings.hr,
+            Some("Heart rate".to_string()),
+            |b| Message::UpdateSelection(Type::Hr, b),
+        );
+        let acc_selector = Toggler::new(
+            self.meta_data.settings.acc,
+            Some("Acceleration".to_string()),
+            |b| Message::UpdateSelection(Type::Acc, b),
+        );
+        let ecg_selector = Toggler::new(
+            self.meta_data.settings.ecg,
+            Some("Electrocardiagram".to_string()),
+            |b| Message::UpdateSelection(Type::Ecg, b),
+        );
 
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 

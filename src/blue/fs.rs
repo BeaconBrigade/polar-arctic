@@ -48,8 +48,8 @@ async fn add_headers(ty: MeasureType, path: &str, msg: String) -> Result<(), Err
         .open(path)
         .await?;
     let mut writer = BufWriter::with_capacity(200, output);
-    let mut message = ty.to_string();
-    message.push_str(&msg);
+    let mut message = msg;
+    message.push_str(&ty.to_string());
 
     writer.write_all(message.as_bytes()).await?;
     writer.flush().await?;
