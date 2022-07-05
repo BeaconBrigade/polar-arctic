@@ -23,7 +23,7 @@ impl ToString for MeasureType {
 }
 
 // Create/Truncate all data
-pub async fn init(Setting { hr, ecg, acc }: Setting, metadata: Meta) -> Result<(), Error> {
+pub async fn init(Setting { hr, ecg, acc, .. }: Setting, metadata: Meta) -> Result<(), Error> {
     if hr {
         add_headers(MeasureType::Hr, "output/hr.csv", metadata.to_string()).await?;
     }
@@ -48,8 +48,8 @@ async fn add_headers(ty: MeasureType, path: &str, msg: String) -> Result<(), Err
         .open(path)
         .await?;
     let mut writer = BufWriter::with_capacity(200, output);
-    let mut message = msg;
-    message.push_str(&ty.to_string());
+    let mut message = ty.to_string();
+    message.push_str(&msg);
 
     writer.write_all(message.as_bytes()).await?;
     writer.flush().await?;

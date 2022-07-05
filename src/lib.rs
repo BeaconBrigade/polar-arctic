@@ -26,6 +26,7 @@ pub struct App {
     which_err: PopupMessage,
     modal_state: iced_aw::modal::State<State>,
     running: bool,
+    settings: Setting,
 }
 
 // Possible views to show the user
@@ -77,6 +78,8 @@ pub enum Message {
     Popup(PopupMessage),
     Connected,
     UpdateSelection(Type, bool),
+    RangeChange(u8),
+    RateChange(u8),
 }
 
 impl Application for App {
@@ -112,9 +115,13 @@ impl Application for App {
                 // Replace with new using user selected options
                 if !self.running {
                     if let Views::Data(data) = &mut self.view {
+                        let set = self.settings;
                         let other_me = Arc::clone(&self.sensor_manager);
                         Command::perform(
-                            new_device(data.id().clone(), Setting::new(true, true, true)), // FIX
+                            new_device(
+                                data.id().clone(),
+                                Setting::new(set.hr, set.ecg, set.acc, set.range, set.rate),
+                            ), // FIX
                             move |res| match res {
                                 Ok(sensor) => {
                                     futures::executor::block_on(other_me.lock()).sensor =
@@ -137,7 +144,7 @@ impl Application for App {
                         self.update(Message::Popup(which.into()));
                     } else {
                         let data = meta.meta_state.meta_data.clone();
-                        let set = meta.meta_state.meta_data.settings;
+                        let set = self.settings;
                         self.update(Message::SwitchView(WhichView::Data));
                         return Command::perform(update(set, data), |res| {
                             if let Err(err) = res {
@@ -185,10 +192,33 @@ impl Application for App {
             Message::UpdateSelection(t, b) => {
                 if let Views::Menu(menu) = &mut self.view {
                     match t {
-                        Type::Hr => menu.meta_state.meta_data.settings.hr = b,
-                        Type::Acc => menu.meta_state.meta_data.settings.acc = b,
-                        Type::Ecg => menu.meta_state.meta_data.settings.ecg = b,
+                        Type::Hr => {
+                            self.settings.hr = b;
+                            menu.meta_state.meta_data.settings.hr = b;
+                        }
+                        Type::Acc => {
+                            self.settings.acc = b;
+                            menu.meta_state.meta_data.settings.acc = b;
+                        }
+                        Type::Ecg => {
+                            self.settings.ecg = b;
+                            menu.meta_state.meta_data.settings.ecg = b;
+                        }
                     }
+                }
+                Command::none()
+            }
+            Message::RangeChange(num) => {
+                if let Views::Menu(menu) = &mut self.view {
+                    self.settings.range = num;
+                    menu.meta_state.meta_data.settings.range = num;
+                }
+                Command::none()
+            }
+            Message::RateChange(num) => {
+                if let Views::Menu(menu) = &mut self.view {
+                    self.settings.rate = num;
+                    menu.meta_state.meta_data.settings.rate = num;
                 }
                 Command::none()
             }

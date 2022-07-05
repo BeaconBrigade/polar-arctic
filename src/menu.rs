@@ -1,7 +1,11 @@
 use super::Message;
 use crate::blue::setting::Setting;
 use chrono::{DateTime, Utc};
-use iced::pure::{self, button, column, text_input, widget::Toggler, Pure, State};
+use iced::pure::{
+    self, button, column, text_input,
+    widget::{PickList, Toggler},
+    Pure, State,
+};
 use iced::{Column, Element, Length, Text};
 
 #[derive(Default)]
@@ -145,6 +149,19 @@ impl MetaState {
             |b| Message::UpdateSelection(Type::Ecg, b),
         );
 
+        let select_title = Text::new("Select range and sample rate (only for acceleration");
+
+        let range_selector = PickList::new(
+            vec![2, 4, 8],
+            Some(self.meta_data.settings.range),
+            Message::RangeChange,
+        );
+        let rate_selector = PickList::new(
+            vec![25, 50, 100, 200],
+            Some(self.meta_data.settings.rate),
+            Message::RateChange,
+        );
+
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 
         column()
@@ -158,6 +175,9 @@ impl MetaState {
             .push(hr_selector)
             .push(acc_selector)
             .push(ecg_selector)
+            .push(select_title)
+            .push(range_selector)
+            .push(rate_selector)
             .push(submit)
             .into()
     }

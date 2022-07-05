@@ -13,7 +13,6 @@ pub struct SensorManager {
 }
 
 impl SensorManager {
-    // Start the event loop
     pub async fn start(&mut self) -> Result<(), Error> {
         if let Some(sensor) = &mut self.sensor {
             sensor.event_handler(Handler::new());
@@ -34,7 +33,13 @@ pub async fn update(settings: Setting, metadata: Meta) -> Result<(), tokio::io::
 // Create new device
 pub async fn new_device(
     id: String,
-    Setting { hr, ecg, acc }: Setting,
+    Setting {
+        hr,
+        ecg,
+        acc,
+        range,
+        rate,
+    }: Setting,
 ) -> Result<PolarSensor, Error> {
     let mut sensor = PolarSensor::new(id).await?;
 
@@ -44,13 +49,13 @@ pub async fn new_device(
                 eprintln!("No bluetooth adapter found");
                 return Err(Error::NoBleAdaptor);
             }
-            Err(why) => {
-                tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                eprintln!("Could not connect: {:?}", why)
-            }
+            Err(why) => eprintln!("Could not connect: {:?}", why),
             _ => {}
         }
     }
+
+    let _ = sensor.range(range);
+    let _ = sensor.sample_rate(rate);
 
     if hr {
         sensor.subscribe(NotifyStream::HeartRate).await?;
