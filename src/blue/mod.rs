@@ -2,9 +2,11 @@ mod fs;
 pub mod setting;
 
 use crate::menu::Meta;
-use arctic::{async_trait, Error, EventHandler, H10MeasurementType, NotifyStream, PolarSensor};
-use fs::init;
+use fs::{init, write_hr, write_data};
+use arctic::{async_trait, Error, EventHandler, H10MeasurementType, NotifyStream, PolarSensor, HeartRate, PmdRead};
 use setting::Setting;
+use tokio::sync::{Mutex, watch::Receiver};
+use std::sync::Arc;
 
 // manage Bluetooth connections
 #[derive(Default)]
@@ -15,7 +17,6 @@ pub struct SensorManager {
 impl SensorManager {
     pub async fn start(&mut self) -> Result<(), Error> {
         if let Some(sensor) = &mut self.sensor {
-            sensor.event_handler(Handler::new());
             sensor.event_loop().await?;
             Ok(())
         } else {
@@ -40,6 +41,7 @@ pub async fn new_device(
         range,
         rate,
     }: Setting,
+    rx: Receiver<bool>,
 ) -> Result<PolarSensor, Error> {
     let mut sensor = PolarSensor::new(id).await?;
 
@@ -71,23 +73,56 @@ pub async fn new_device(
         sensor.data_type_push(H10MeasurementType::Acc);
     }
 
+    sensor.event_handler(Handler::new(rx, rate));
+
     Ok(sensor)
 }
 
-#[derive(Debug, Clone, Copy)]
-struct Handler;
+// Reset sensor for future use
+pub async fn reset(manager: Arc<Mutex<SensorManager>>) -> Result<(), Error> {
+    let mut unlocked = manager.lock().await;
+    let sensor = unlocked.sensor.as_mut().ok_or(Error::NoDevice)?;
 
-impl Default for Handler {
-    fn default() -> Self {
-        Self::new()
+    let _ = sensor.range(8);
+    let _ = sensor.sample_rate(200);
+
+    let tys = sensor.data_type().as_ref().expect("Unreachable").clone();
+    for t in tys {
+        sensor.data_type_pop(t);
     }
+
+    Ok(())
+}
+
+#[derive(Debug, Clone)]
+struct Handler {
+    rx: Receiver<bool>,
+    rate: u8
 }
 
 impl Handler {
-    fn new() -> Self {
-        Self {}
+    fn new(rx: Receiver<bool>, rate: u8) -> Self {
+        Self { rx, rate }
     }
 }
 
 #[async_trait]
-impl EventHandler for Handler {}
+impl EventHandler for Handler {
+    async fn heart_rate_update(&self, _ctx: &PolarSensor, heartrate: HeartRate) {
+        if let Err(e) = write_hr(heartrate).await {
+            eprintln!("HR writing error: {:?}", e);
+        }
+    }
+
+    async fn measurement_update(&self, _ctx: &PolarSensor, data: PmdRead) {
+        if let Err(e) = write_data(data, self.rate).await {
+            eprintln!("measurement writing error: {:?}", e);
+        }
+    }
+
+    async fn should_continue(&self) -> bool {
+        *self.rx.borrow()
+    }
+}
+
+

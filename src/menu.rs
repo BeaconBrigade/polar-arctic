@@ -37,6 +37,7 @@ impl Menu {
             WhichMeta::Session => self.meta_state.meta_data.session = msg,
             WhichMeta::Trial => self.meta_state.meta_data.trial = msg,
             WhichMeta::Description => self.meta_state.meta_data.description = msg,
+            _ => {}
         }
     }
 
@@ -54,6 +55,10 @@ impl Menu {
         }
         if meta.description.is_empty() {
             return Err(WhichMeta::Description);
+        }
+
+        if !(meta.settings.acc || meta.settings.ecg || meta.settings.hr) {
+            return Err(WhichMeta::NoData);
         }
 
         Ok(())
@@ -100,6 +105,7 @@ pub enum WhichMeta {
     Session,
     Trial,
     Description,
+    NoData,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -149,7 +155,7 @@ impl MetaState {
             |b| Message::UpdateSelection(Type::Ecg, b),
         );
 
-        let select_title = Text::new("Select range and sample rate (only for acceleration");
+        let select_title = Text::new("Select range and sample rate (only for acceleration)").size(30);
 
         let range_selector = PickList::new(
             vec![2, 4, 8],

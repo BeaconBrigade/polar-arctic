@@ -37,6 +37,7 @@ pub fn get_modal(ty: PopupMessage) -> (String, String) {
                 WhichMeta::Trial => trial::view(),
                 WhichMeta::Session => session::view(),
                 WhichMeta::Description => description::view(),
+                WhichMeta::NoData => "Atleast one measurement type must be specified".to_string(),
             },
         ),
         PopupMessage::DeviceID => ("Invalid device ID".to_string(), device::view()),

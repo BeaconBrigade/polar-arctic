@@ -45,14 +45,16 @@ impl Data {
             .size(20)
             .on_submit(Message::CreateSensor);
 
-        // Data side
+        let stop_button = button(Text::new("Stop Measurement")).on_press(Message::StopMeasurement);
+
         let view = column()
             .spacing(20)
             .width(Length::Fill)
             .max_width(1000)
             .push(header)
             .push(Rule::horizontal(10))
-            .push(input);
+            .push(input)
+            .push(stop_button);
 
         let pure = Pure::new(&mut self.state, view);
 
@@ -79,8 +81,9 @@ impl Data {
 // Store chart data
 #[derive(Default)]
 struct EcgChart {
-    data_points: VecDeque<(u64, f32)>,
+    data_points: VecDeque<(u64, i32)>,
 }
+
 
 impl EcgChart {
     pub fn new() -> Result<EcgChart, Box<dyn std::error::Error>> {
@@ -106,13 +109,22 @@ impl EcgChart {
             .from_path("output/test.csv")
             .unwrap();
 
+        let records = rdr.records().skip(1).collect::<Vec<Result<csv::StringRecord, csv::Error>>>().into_iter().rev().take(200).rev();
+
         // skip extra header row
-        for record in rdr.records().skip(1) {
+        for record in records {
             let result = record?;
-            self.data_points
-                .push_back((result[0].parse()?, result[1].parse::<f32>()? * 100.0));
+            self.push((result[0].parse()?, result[1].parse::<i32>()?));
         }
         Ok(())
+    }
+
+    // Add to back and pop off front
+    fn push(&mut self, val: (u64, i32)) {
+        self.data_points.push_back(val);
+        while self.data_points.len() > 200 {
+            self.data_points.pop_front();
+        }
     }
 
     // Update data - remove data from the end and add to the start
@@ -122,14 +134,11 @@ impl EcgChart {
 impl Chart<Message> for EcgChart {
     // Create plotters chart
     fn build_chart<DB: DrawingBackend>(&self, mut builder: ChartBuilder<DB>) {
-        let start = self.data_points[0].0;
-        let end = self.data_points.back().unwrap().0;
-
         let mut ctx = builder
             .set_label_area_size(LabelAreaPosition::Bottom, -181)
             .set_label_area_size(LabelAreaPosition::Left, 40)
             .caption("ECG Data", ("sans-serif", 30u32))
-            .build_cartesian_2d(0..100u64, -1000.0..1000.0f64)
+            .build_cartesian_2d(0..200u64, -1000..1000i32)
             .unwrap();
 
         ctx.configure_mesh()
@@ -137,10 +146,12 @@ impl Chart<Message> for EcgChart {
             .draw()
             .unwrap();
 
-        ctx.draw_series(LineSeries::new(
-            (start..end).map(|p| (p, self.data_points[(p - start) as usize].1 as f64)),
+        let series = LineSeries::new(
+            (0..self.data_points.len() as u64).map(|p| (p, self.data_points[p as usize].1)),
             &BLACK,
-        ))
-        .expect("Error making graph");
+        );
+
+        ctx.draw_series(series)
+            .expect("Error making graph");
     }
 }

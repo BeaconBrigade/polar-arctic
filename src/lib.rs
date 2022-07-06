@@ -6,14 +6,14 @@ use iced::{
 use iced_aw::{pure::Card, Modal};
 use std::sync::Arc;
 use std::time;
-use tokio::sync::Mutex;
+use tokio::sync::{watch::{Sender, channel}, Mutex};
 
 mod blue;
 mod data;
 mod menu;
 mod modal;
 
-use blue::{new_device, setting::Setting, update, SensorManager};
+use blue::{new_device, setting::Setting, update, SensorManager, reset};
 use data::Data;
 use menu::{Menu, Type, WhichMeta};
 use modal::{get_modal, PopupMessage};
@@ -27,6 +27,7 @@ pub struct App {
     modal_state: iced_aw::modal::State<State>,
     running: bool,
     settings: Setting,
+    tx: Option<Sender<bool>>,
 }
 
 // Possible views to show the user
@@ -80,6 +81,7 @@ pub enum Message {
     UpdateSelection(Type, bool),
     RangeChange(u8),
     RateChange(u8),
+    StopMeasurement,
 }
 
 impl Application for App {
@@ -115,13 +117,16 @@ impl Application for App {
                 // Replace with new using user selected options
                 if !self.running {
                     if let Views::Data(data) = &mut self.view {
+                        let (tx, rx) = channel(true);
+                        self.tx = Some(tx);
                         let set = self.settings;
                         let other_me = Arc::clone(&self.sensor_manager);
                         Command::perform(
                             new_device(
                                 data.id().clone(),
                                 Setting::new(set.hr, set.ecg, set.acc, set.range, set.rate),
-                            ), // FIX
+                                rx,
+                            ),
                             move |res| match res {
                                 Ok(sensor) => {
                                     futures::executor::block_on(other_me.lock()).sensor =
@@ -165,7 +170,22 @@ impl Application for App {
             }
             Message::SwitchView(view) => {
                 self.view = view.into();
-                Command::none()
+                if let WhichView::Menu = view {
+                    self.update(Message::StopMeasurement);
+                    let other_me = Arc::clone(&self.sensor_manager);
+                    Command::perform(
+                        reset(other_me),
+                        |res| {
+                            if let Err(e) = res {
+                                Message::Popup(PopupMessage::Polar(e.to_string()))
+                            } else {
+                                Message::None
+                            }
+                        },
+                    )
+                } else {
+                    Command::none()
+                }
             }
             Message::CloseModal => {
                 self.modal_state.show(false);
@@ -174,7 +194,11 @@ impl Application for App {
             Message::Popup(which) => {
                 self.modal_state.show(true);
                 self.which_err = which;
-                Command::none()
+                if let PopupMessage::Connected = &self.which_err {
+                    self.update(Message::Connected)
+                } else {
+                    Command::none()
+                }
             }
             Message::Connected => {
                 let other_me = Arc::clone(&self.sensor_manager);
@@ -219,6 +243,12 @@ impl Application for App {
                 if let Views::Menu(menu) = &mut self.view {
                     self.settings.rate = num;
                     menu.meta_state.meta_data.settings.rate = num;
+                }
+                Command::none()
+            }
+            Message::StopMeasurement => {
+                if let Some(tx) = &self.tx {
+                    tx.send(false).expect("Unable to send stop signal????");
                 }
                 Command::none()
             }
