@@ -1,10 +1,10 @@
 use csv::ReaderBuilder;
 use iced::pure::{button, column, row, text_input, widget::Text, Pure, State};
-use iced::{Column, Length, Rule, Row};
+use iced::{Column, Length, Row, Rule};
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
-use std::{collections::VecDeque, io};
 use std::fmt::Write as _;
+use std::{collections::VecDeque, io};
 
 use crate::menu::Paths;
 
@@ -91,11 +91,7 @@ impl Data {
             .push(self.chart.view())
             .push(data_column);
 
-        Column::new()
-            .spacing(20)
-            .push(pure)
-            .push(data)
-            .into()
+        Column::new().spacing(20).push(pure).push(data).into()
     }
 
     pub fn update_id(&mut self, msg: String) {

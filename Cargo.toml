@@ -4,9 +4,11 @@ version = "0.1.0"
 edition = "2021"
 authors = ["BeaconBrigade <beaconbrigade@gmail.com>"]
 description = "An app for displaying and storing data from the Polar H10"
+keywords = ["ble", "heartrate", "ecg", "electrocardiagram", "acceleration", "rr", "H10", "Polar"]
 license = "MIT"
+license-file = "LICENSE"
 readme = "README.md"
-repository = "https://github.com/BeaconBrigade/polar-arctic.git"
+repository = "https://github.com/BeaconBrigade/polar-arctic"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

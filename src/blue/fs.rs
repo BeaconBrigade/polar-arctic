@@ -5,7 +5,10 @@ use crate::{
 };
 use arctic::{H10MeasurementType, HeartRate, PmdData, PmdRead};
 use csv::{ReaderBuilder, StringRecord};
-use std::{time::{SystemTime, UNIX_EPOCH}, io::ErrorKind};
+use std::{
+    io::ErrorKind,
+    time::{SystemTime, UNIX_EPOCH},
+};
 use tokio::{
     fs::OpenOptions,
     io::{AsyncWriteExt, BufWriter, Error},

@@ -4,8 +4,8 @@ use iced::{
     Application, Column, Command, Container, Element, Length, Rule, Subscription, Text,
 };
 use iced_aw::{pure::Card, Modal};
-use std::{sync::Arc, io::ErrorKind};
 use std::time;
+use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::{
     watch::{channel, Sender},
     Mutex,
