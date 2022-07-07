@@ -4,8 +4,8 @@ use iced::{
     Application, Column, Command, Container, Element, Length, Rule, Subscription, Text,
 };
 use iced_aw::{pure::Card, Modal};
+use std::sync::Arc;
 use std::time;
-use std::{io::ErrorKind, sync::Arc};
 use tokio::sync::{
     watch::{channel, Sender},
     Mutex,
@@ -16,7 +16,7 @@ mod data;
 mod menu;
 mod modal;
 
-use blue::{new_device, reset, setting::Setting, update, SensorManager};
+use blue::{new_device, reset, setting::Setting, update, DataSender, SensorManager};
 use data::Data;
 use menu::{Menu, Paths, Type, WhichMeta};
 use modal::{get_modal, PopupMessage};
@@ -28,7 +28,6 @@ pub struct App {
     view: Views,
     which_err: PopupMessage,
     modal_state: iced_aw::modal::State<State>,
-    running: bool,
     settings: Setting,
     tx: Option<Sender<bool>>,
     paths: Paths,
@@ -108,14 +107,7 @@ impl Application for App {
             Message::None => Command::none(),
             Message::Tick => {
                 if let Views::Data(data) = &mut self.view {
-                    if let Err(err) = data.update(self.paths.clone()) {
-                        match err.kind() {
-                            ErrorKind::InvalidData => {} // no data has appeared yet
-                            e => {
-                                self.update(Message::Popup(PopupMessage::Io(e.to_string())));
-                            }
-                        }
-                    }
+                    data.update();
                 }
                 Command::none()
             }
@@ -127,32 +119,30 @@ impl Application for App {
             }
             Message::CreateSensor => {
                 // Replace with new using user selected options
-                if !self.running {
-                    if let Views::Data(data) = &mut self.view {
-                        let (tx, rx) = channel(true);
-                        self.tx = Some(tx);
-                        let set = self.settings;
-                        let paths = self.paths.clone();
-                        let other_me = Arc::clone(&self.sensor_manager);
-                        Command::perform(
-                            new_device(
-                                data.id().clone(),
-                                Setting::new(set.hr, set.ecg, set.acc, set.range, set.rate),
-                                rx,
-                                paths,
-                            ),
-                            move |res| match res {
-                                Ok(sensor) => {
-                                    futures::executor::block_on(other_me.lock()).sensor =
-                                        Some(sensor);
-                                    Message::Popup(PopupMessage::Connected)
-                                }
-                                Err(e) => Message::Popup(PopupMessage::Polar(e.to_string())),
-                            },
-                        )
-                    } else {
-                        Command::none()
-                    }
+                if let Views::Data(data) = &mut self.view {
+                    let (tx, rx) = channel(true);
+                    self.tx = Some(tx);
+                    let set = self.settings;
+                    let paths = self.paths.clone();
+                    let other_me = Arc::clone(&self.sensor_manager);
+                    let (send, recv) = DataSender::init_transmitters();
+                    data.take_receivers(recv);
+                    Command::perform(
+                        new_device(
+                            data.id().clone(),
+                            Setting::new(set.hr, set.ecg, set.acc, set.range, set.rate),
+                            rx,
+                            paths,
+                            send,
+                        ),
+                        move |res| match res {
+                            Ok(sensor) => {
+                                futures::executor::block_on(other_me.lock()).sensor = Some(sensor);
+                                Message::Popup(PopupMessage::Connected)
+                            }
+                            Err(e) => Message::Popup(PopupMessage::Polar(e.to_string())),
+                        },
+                    )
                 } else {
                     Command::none()
                 }

@@ -1,20 +1,21 @@
-use csv::ReaderBuilder;
 use iced::pure::{button, column, row, text_input, widget::Text, Pure, State};
 use iced::{Column, Length, Row, Rule};
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
-use std::fmt::Write as _;
-use std::{collections::VecDeque, io};
+use rev_lines::RevLines;
+use std::collections::VecDeque;
+use std::fs::File;
+use std::io::BufReader;
+use tokio::sync::watch::Receiver;
 
-use crate::menu::Paths;
-
-use super::{blue::fs::update_recent, modal::PopupMessage, Message, WhichView};
+use super::{modal::PopupMessage, Message, WhichView};
 
 pub struct Data {
     chart: EcgChart,
     device_id: String,
     state: State,
     recent_data: Recent,
+    receiver: Option<DataReceiver>,
 }
 
 impl Default for Data {
@@ -24,6 +25,7 @@ impl Default for Data {
             device_id: "".to_string(),
             state: State::new(),
             recent_data: Recent::default(),
+            receiver: None,
         }
     }
 }
@@ -33,11 +35,17 @@ impl Data {
         Self::default()
     }
 
+    pub fn take_receivers(&mut self, receiver: DataReceiver) {
+        self.receiver = Some(receiver);
+    }
+
     pub fn view(&mut self) -> iced::Element<Message> {
         let back = button(Text::new("Back to menu").size(20))
-            .on_press(Message::SwitchView(WhichView::Menu));
-        let help =
-            button(Text::new("Help").size(20)).on_press(Message::Popup(PopupMessage::DataHelp));
+            .on_press(Message::SwitchView(WhichView::Menu))
+            .padding(15);
+        let help = button(Text::new("Help").size(20))
+            .on_press(Message::Popup(PopupMessage::DataHelp))
+            .padding(15);
 
         let header = row().push(back).push(help);
 
@@ -59,19 +67,15 @@ impl Data {
 
         let pure = Pure::new(&mut self.state, view);
 
-        // I hate doing this
-        let mut rr_text = String::new();
-        let mut first = true;
-        for item in self.recent_data.rr.iter() {
-            if !first {
-                rr_text.push_str(", ");
-            }
-            let _ = write!(rr_text, "{}", item);
-            first = false;
-        }
+        let rr_text = &self.recent_data.rr;
+        let mut rr_text = rr_text.chars();
+        rr_text.next();
 
         let bpm = iced::Text::new(&format!("Heart rate (BPM): {}", self.recent_data.bpm));
-        let rr = iced::Text::new(&format!("RR interval (µV): {}", rr_text));
+        let rr = iced::Text::new(&format!(
+            "RR interval (µV): {}",
+            rr_text.as_str().replace(',', ", ")
+        ));
         let acc_title = iced::Text::new("Acceleration (mG):");
         let x = iced::Text::new(&format!("    X: {}", self.recent_data.x));
         let y = iced::Text::new(&format!("    Y: {}", self.recent_data.y));
@@ -102,9 +106,16 @@ impl Data {
         &mut self.device_id
     }
 
-    pub fn update(&mut self, paths: Paths) -> Result<(), io::Error> {
+    pub fn update(&mut self) {
         self.chart.update();
-        self.recent_data.update(paths)
+        if let Some(rx) = &self.receiver {
+            self.recent_data.bpm = rx.hr();
+            self.recent_data.rr = rx.rr();
+            let (x, y, z) = rx.acc();
+            self.recent_data.x = x;
+            self.recent_data.y = y;
+            self.recent_data.z = z;
+        }
     }
 
     pub fn set_path(&mut self, path: String) {
@@ -125,7 +136,7 @@ impl EcgChart {
             data_points: VecDeque::with_capacity(200),
             path,
         };
-        chart.init_data()?;
+        chart.update_data()?;
 
         Ok(chart)
     }
@@ -140,26 +151,20 @@ impl EcgChart {
     }
 
     // Get initial data from file
-    fn init_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let mut rdr = ReaderBuilder::new()
-            .flexible(true)
-            .from_path(&self.path)
-            .unwrap();
+    fn update_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+        let file = File::open(&self.path)?;
+        let records = RevLines::with_capacity(400, BufReader::new(file))?;
 
-        let records = rdr
-            .records()
-            .skip(1)
-            .collect::<Vec<Result<csv::StringRecord, csv::Error>>>()
-            .into_iter()
-            .rev()
-            .take(200)
-            .rev();
-
-        // skip extra header row
-        for record in records {
-            let result = record?;
-            self.push((result[0].parse()?, result[1].parse::<i32>()?));
+        for record in records.take(200) {
+            if record.contains("time") || record.contains("UTC") {
+                continue;
+            }
+            let mut val = record.split(',');
+            let time = val.next().unwrap();
+            let ecg = val.next().unwrap();
+            self.push((time.parse::<u64>()?, ecg.parse::<i32>()?));
         }
+
         Ok(())
     }
 
@@ -173,7 +178,7 @@ impl EcgChart {
 
     // Update data - remove data from the end and add to the start
     fn update(&mut self) {
-        if let Err(e) = self.init_data() {
+        if let Err(e) = self.update_data() {
             eprintln!("Error getting data: {}", e);
         }
     }
@@ -206,14 +211,33 @@ impl Chart<Message> for EcgChart {
 #[derive(Debug, Default, Clone)]
 pub struct Recent {
     pub bpm: u8,
-    pub rr: Vec<u16>,
+    pub rr: String,
     pub x: i16,
     pub y: i16,
     pub z: i16,
 }
 
-impl Recent {
-    pub fn update(&mut self, paths: Paths) -> Result<(), io::Error> {
-        update_recent(self, paths)
+// Instead of reading the output files, get messages containing the data
+pub struct DataReceiver {
+    hr: Receiver<u8>,
+    rr: Receiver<String>,
+    acc: Receiver<(i16, i16, i16)>,
+}
+
+impl DataReceiver {
+    pub fn new(hr: Receiver<u8>, rr: Receiver<String>, acc: Receiver<(i16, i16, i16)>) -> Self {
+        Self { hr, rr, acc }
+    }
+
+    pub fn hr(&self) -> u8 {
+        *self.hr.borrow()
+    }
+
+    pub fn rr(&self) -> String {
+        self.rr.borrow().clone()
+    }
+
+    pub fn acc(&self) -> (i16, i16, i16) {
+        *self.acc.borrow()
     }
 }
