@@ -1,44 +1,45 @@
 use csv::ReaderBuilder;
 use iced::pure::{button, column, row, text_input, widget::Text, Pure, State};
-use iced::{Column, Length, Rule};
+use iced::{Column, Length, Rule, Row};
 use plotters::prelude::*;
 use plotters_iced::{Chart, ChartWidget, DrawingBackend};
-use std::collections::VecDeque;
+use std::{collections::VecDeque, io};
+use std::fmt::Write as _;
 
-use super::{Message, WhichView};
+use crate::menu::Paths;
+
+use super::{blue::fs::update_recent, modal::PopupMessage, Message, WhichView};
 
 pub struct Data {
     chart: EcgChart,
     device_id: String,
     state: State,
+    recent_data: Recent,
 }
 
 impl Default for Data {
     fn default() -> Self {
         Self {
-            chart: EcgChart::new().unwrap(),
+            chart: EcgChart::new("output/ecg.csv".to_string()).unwrap(),
             device_id: "".to_string(),
             state: State::new(),
+            recent_data: Recent::default(),
         }
     }
 }
 
 impl Data {
     pub fn new() -> Self {
-        Self {
-            chart: EcgChart::new().unwrap(),
-            ..Default::default()
-        }
+        Self::default()
     }
 
     pub fn view(&mut self) -> iced::Element<Message> {
         let back = button(Text::new("Back to menu").size(20))
             .on_press(Message::SwitchView(WhichView::Menu));
+        let help =
+            button(Text::new("Help").size(20)).on_press(Message::Popup(PopupMessage::DataHelp));
 
-        let header = row()
-            .push(Text::new("Data"))
-            .push(Rule::horizontal(0))
-            .push(back);
+        let header = row().push(back).push(help);
 
         let input = text_input("Device ID", &self.device_id, Message::NewDeviceID)
             .padding(15)
@@ -58,10 +59,42 @@ impl Data {
 
         let pure = Pure::new(&mut self.state, view);
 
+        // I hate doing this
+        let mut rr_text = String::new();
+        let mut first = true;
+        for item in self.recent_data.rr.iter() {
+            if !first {
+                rr_text.push_str(", ");
+            }
+            let _ = write!(rr_text, "{}", item);
+            first = false;
+        }
+
+        let bpm = iced::Text::new(&format!("Heart rate (BPM): {}", self.recent_data.bpm));
+        let rr = iced::Text::new(&format!("RR interval (µV): {}", rr_text));
+        let acc_title = iced::Text::new("Acceleration (mG):");
+        let x = iced::Text::new(&format!("    X: {}", self.recent_data.x));
+        let y = iced::Text::new(&format!("    Y: {}", self.recent_data.y));
+        let z = iced::Text::new(&format!("    Z: {}", self.recent_data.z));
+
+        let data_column = Column::new()
+            .spacing(20)
+            .push(bpm)
+            .push(rr)
+            .push(acc_title)
+            .push(x)
+            .push(y)
+            .push(z);
+
+        let data = Row::new()
+            .spacing(20)
+            .push(self.chart.view())
+            .push(data_column);
+
         Column::new()
             .spacing(20)
             .push(pure)
-            .push(self.chart.view())
+            .push(data)
             .into()
     }
 
@@ -73,8 +106,13 @@ impl Data {
         &mut self.device_id
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self, paths: Paths) -> Result<(), io::Error> {
         self.chart.update();
+        self.recent_data.update(paths)
+    }
+
+    pub fn set_path(&mut self, path: String) {
+        self.chart.path = path
     }
 }
 
@@ -82,12 +120,15 @@ impl Data {
 #[derive(Default)]
 struct EcgChart {
     data_points: VecDeque<(u64, i32)>,
+    pub path: String,
 }
 
-
 impl EcgChart {
-    pub fn new() -> Result<EcgChart, Box<dyn std::error::Error>> {
-        let mut chart = Self::default();
+    pub fn new(path: String) -> Result<EcgChart, Box<dyn std::error::Error>> {
+        let mut chart = Self {
+            data_points: VecDeque::with_capacity(200),
+            path,
+        };
         chart.init_data()?;
 
         Ok(chart)
@@ -106,10 +147,17 @@ impl EcgChart {
     fn init_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let mut rdr = ReaderBuilder::new()
             .flexible(true)
-            .from_path("output/test.csv")
+            .from_path(&self.path)
             .unwrap();
 
-        let records = rdr.records().skip(1).collect::<Vec<Result<csv::StringRecord, csv::Error>>>().into_iter().rev().take(200).rev();
+        let records = rdr
+            .records()
+            .skip(1)
+            .collect::<Vec<Result<csv::StringRecord, csv::Error>>>()
+            .into_iter()
+            .rev()
+            .take(200)
+            .rev();
 
         // skip extra header row
         for record in records {
@@ -121,14 +169,18 @@ impl EcgChart {
 
     // Add to back and pop off front
     fn push(&mut self, val: (u64, i32)) {
-        self.data_points.push_back(val);
+        self.data_points.push_front(val);
         while self.data_points.len() > 200 {
-            self.data_points.pop_front();
+            self.data_points.pop_back();
         }
     }
 
     // Update data - remove data from the end and add to the start
-    fn update(&mut self) {}
+    fn update(&mut self) {
+        if let Err(e) = self.init_data() {
+            eprintln!("Error getting data: {}", e);
+        }
+    }
 }
 
 impl Chart<Message> for EcgChart {
@@ -151,7 +203,21 @@ impl Chart<Message> for EcgChart {
             &BLACK,
         );
 
-        ctx.draw_series(series)
-            .expect("Error making graph");
+        ctx.draw_series(series).expect("Error making graph");
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct Recent {
+    pub bpm: u8,
+    pub rr: Vec<u16>,
+    pub x: i16,
+    pub y: i16,
+    pub z: i16,
+}
+
+impl Recent {
+    pub fn update(&mut self, paths: Paths) -> Result<(), io::Error> {
+        update_recent(self, paths)
     }
 }

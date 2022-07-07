@@ -4,18 +4,21 @@ use iced::{
     Application, Column, Command, Container, Element, Length, Rule, Subscription, Text,
 };
 use iced_aw::{pure::Card, Modal};
-use std::sync::Arc;
+use std::{sync::Arc, io::ErrorKind};
 use std::time;
-use tokio::sync::{watch::{Sender, channel}, Mutex};
+use tokio::sync::{
+    watch::{channel, Sender},
+    Mutex,
+};
 
 mod blue;
 mod data;
 mod menu;
 mod modal;
 
-use blue::{new_device, setting::Setting, update, SensorManager, reset};
+use blue::{new_device, reset, setting::Setting, update, SensorManager};
 use data::Data;
-use menu::{Menu, Type, WhichMeta};
+use menu::{Menu, Paths, Type, WhichMeta};
 use modal::{get_modal, PopupMessage};
 
 // Main Application
@@ -28,6 +31,7 @@ pub struct App {
     running: bool,
     settings: Setting,
     tx: Option<Sender<bool>>,
+    paths: Paths,
 }
 
 // Possible views to show the user
@@ -82,6 +86,7 @@ pub enum Message {
     RangeChange(u8),
     RateChange(u8),
     StopMeasurement,
+    SetPath(Type, String),
 }
 
 impl Application for App {
@@ -103,7 +108,14 @@ impl Application for App {
             Message::None => Command::none(),
             Message::Tick => {
                 if let Views::Data(data) = &mut self.view {
-                    data.update();
+                    if let Err(err) = data.update(self.paths.clone()) {
+                        match err.kind() {
+                            ErrorKind::InvalidData => {} // no data has appeared yet
+                            e => {
+                                self.update(Message::Popup(PopupMessage::Io(e.to_string())));
+                            }
+                        }
+                    }
                 }
                 Command::none()
             }
@@ -120,12 +132,14 @@ impl Application for App {
                         let (tx, rx) = channel(true);
                         self.tx = Some(tx);
                         let set = self.settings;
+                        let paths = self.paths.clone();
                         let other_me = Arc::clone(&self.sensor_manager);
                         Command::perform(
                             new_device(
                                 data.id().clone(),
                                 Setting::new(set.hr, set.ecg, set.acc, set.range, set.rate),
                                 rx,
+                                paths,
                             ),
                             move |res| match res {
                                 Ok(sensor) => {
@@ -150,8 +164,13 @@ impl Application for App {
                     } else {
                         let data = meta.meta_state.meta_data.clone();
                         let set = self.settings;
+                        let paths = meta.meta_state.paths.clone();
+                        let ecg = paths.ecg.clone();
                         self.update(Message::SwitchView(WhichView::Data));
-                        return Command::perform(update(set, data), |res| {
+                        if let Views::Data(data) = &mut self.view {
+                            data.set_path(ecg);
+                        }
+                        return Command::perform(update(set, data, paths), |res| {
                             if let Err(err) = res {
                                 Message::Popup(PopupMessage::Io(err.to_string()))
                             } else {
@@ -173,16 +192,13 @@ impl Application for App {
                 if let WhichView::Menu = view {
                     self.update(Message::StopMeasurement);
                     let other_me = Arc::clone(&self.sensor_manager);
-                    Command::perform(
-                        reset(other_me),
-                        |res| {
-                            if let Err(e) = res {
-                                Message::Popup(PopupMessage::Polar(e.to_string()))
-                            } else {
-                                Message::None
-                            }
-                        },
-                    )
+                    Command::perform(reset(other_me), |res| {
+                        if let Err(e) = res {
+                            Message::Popup(PopupMessage::Polar(e.to_string()))
+                        } else {
+                            Message::None
+                        }
+                    })
                 } else {
                     Command::none()
                 }
@@ -249,6 +265,25 @@ impl Application for App {
             Message::StopMeasurement => {
                 if let Some(tx) = &self.tx {
                     tx.send(false).expect("Unable to send stop signal????");
+                }
+                Command::none()
+            }
+            Message::SetPath(ty, path) => {
+                if let Views::Menu(menu) = &mut self.view {
+                    match ty {
+                        Type::Hr => {
+                            menu.meta_state.paths.hr = path.clone();
+                            self.paths.hr = path;
+                        }
+                        Type::Ecg => {
+                            menu.meta_state.paths.ecg = path.clone();
+                            self.paths.ecg = path;
+                        }
+                        Type::Acc => {
+                            menu.meta_state.paths.acc = path.clone();
+                            self.paths.acc = path;
+                        }
+                    }
                 }
                 Command::none()
             }

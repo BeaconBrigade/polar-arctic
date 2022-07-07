@@ -1,5 +1,4 @@
-use super::Message;
-use crate::blue::setting::Setting;
+use crate::{blue::setting::Setting, modal::PopupMessage, Message};
 use chrono::{DateTime, Utc};
 use iced::pure::{
     self, button, column, text_input,
@@ -42,24 +41,42 @@ impl Menu {
     }
 
     pub fn verify(&mut self) -> Result<(), WhichMeta> {
-        let meta = &mut self.meta_state.meta_data;
+        let meta = &mut self.meta_state;
 
-        if meta.id.is_empty() {
+        if meta.meta_data.id.is_empty() {
             return Err(WhichMeta::Id);
         }
-        if meta.session.is_empty() {
+        if meta.meta_data.session.is_empty() {
             return Err(WhichMeta::Session);
         }
-        if meta.trial.is_empty() {
+        if meta.meta_data.trial.is_empty() {
             return Err(WhichMeta::Trial);
         }
-        if meta.description.is_empty() {
+        if meta.meta_data.description.is_empty() {
             return Err(WhichMeta::Description);
         }
 
-        if !(meta.settings.acc || meta.settings.ecg || meta.settings.hr) {
+        if !(meta.meta_data.settings.acc
+            || meta.meta_data.settings.ecg
+            || meta.meta_data.settings.hr)
+        {
             return Err(WhichMeta::NoData);
         }
+        if meta.meta_data.settings.hr && meta.paths.hr.is_empty() {
+            return Err(WhichMeta::NoPath);
+        }
+        if meta.meta_data.settings.acc && meta.paths.acc.is_empty() {
+            return Err(WhichMeta::NoPath);
+        }
+        if meta.meta_data.settings.ecg && meta.paths.ecg.is_empty() {
+            return Err(WhichMeta::NoPath);
+        }
+
+        // get rid of commas to not mess up csv file
+        meta.meta_data.id = meta.meta_data.id.replace(',', "-");
+        meta.meta_data.session = meta.meta_data.session.replace(',', "-");
+        meta.meta_data.trial = meta.meta_data.trial.replace(',', "-");
+        meta.meta_data.description = meta.meta_data.description.replace(',', "-");
 
         Ok(())
     }
@@ -106,6 +123,7 @@ pub enum WhichMeta {
     Trial,
     Description,
     NoData,
+    NoPath,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -115,30 +133,39 @@ pub enum Type {
     Ecg,
 }
 
+#[derive(Debug, Default, Clone)]
+pub struct Paths {
+    pub hr: String,
+    pub acc: String,
+    pub ecg: String,
+}
+
 // Store states for meta data
 #[derive(Default, Clone)]
 pub struct MetaState {
     pub meta_data: Meta,
+    pub paths: Paths,
 }
 
 impl MetaState {
     fn view(&mut self) -> pure::Element<Message> {
+        let help =
+            button(Text::new("Help").size(20)).on_press(Message::Popup(PopupMessage::MenuHelp));
+        // Meta data inputs
         let id = text_input("Participant ID", &self.meta_data.id, |s| {
             Message::ChangeMeta(WhichMeta::Id, s)
         });
-
         let session = text_input("Session Number", &self.meta_data.session, |s| {
             Message::ChangeMeta(WhichMeta::Session, s)
         });
-
         let trial = text_input("Trial number", &self.meta_data.trial, |s| {
             Message::ChangeMeta(WhichMeta::Trial, s)
         });
-
         let description = text_input("Description/Notes", &self.meta_data.description, |s| {
             Message::ChangeMeta(WhichMeta::Description, s)
         });
 
+        // Toggles for measurement types
         let hr_selector = Toggler::new(
             self.meta_data.settings.hr,
             Some("Heart rate".to_string()),
@@ -155,8 +182,9 @@ impl MetaState {
             |b| Message::UpdateSelection(Type::Ecg, b),
         );
 
-        let select_title = Text::new("Select range and sample rate (only for acceleration)").size(30);
-
+        // Range and rate selector
+        let select_title =
+            Text::new("Select range and sample rate (only for acceleration)").size(30);
         let range_selector = PickList::new(
             vec![2, 4, 8],
             Some(self.meta_data.settings.range),
@@ -168,12 +196,26 @@ impl MetaState {
             Message::RateChange,
         );
 
+        // Path selectors
+        let hr_path = text_input("Path to hr output file", &self.paths.hr, |s| {
+            Message::SetPath(Type::Hr, s)
+        });
+        let acc_path = text_input("Path to acceleration output file", &self.paths.acc, |s| {
+            Message::SetPath(Type::Acc, s)
+        });
+        let ecg_path = text_input(
+            "Path to electrocardiagram output file",
+            &self.paths.ecg,
+            |s| Message::SetPath(Type::Ecg, s),
+        );
+
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 
         column()
             .spacing(20)
             .width(Length::Fill)
             .height(Length::Fill)
+            .push(help)
             .push(id)
             .push(session)
             .push(trial)
@@ -184,6 +226,9 @@ impl MetaState {
             .push(select_title)
             .push(range_selector)
             .push(rate_selector)
+            .push(hr_path)
+            .push(acc_path)
+            .push(ecg_path)
             .push(submit)
             .into()
     }
