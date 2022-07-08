@@ -4,10 +4,12 @@ version = "0.1.0"
 edition = "2021"
 authors = ["BeaconBrigade <beaconbrigade@gmail.com>"]
 description = "An app for displaying and storing data from the Polar H10"
-keywords = ["ble", "heartrate", "ecg", "electrocardiagram", "acceleration", "rr", "H10", "Polar"]
-license = "Apache 2.0"
+keywords = ["ble", "heartrate", "H10", "Polar"]
+license = "Apache-2.0"
 readme = "README.md"
-repository = "https://github.com/BeaconBrigade/polar-arctic"
+repository = "https://github.com/BeaconBrigade/polar-arctic.git"
+homepage = "https://github.com/BeaconBrigade/polar-arctic"
+documentation = "https://docs.rs/polar-arctic/latest/polar-arctic"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

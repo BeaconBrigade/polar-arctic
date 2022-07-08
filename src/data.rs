@@ -21,7 +21,7 @@ pub struct Data {
 impl Default for Data {
     fn default() -> Self {
         Self {
-            chart: EcgChart::new("output/ecg.csv".to_string()).unwrap(),
+            chart: EcgChart::new().unwrap(),
             device_id: "".to_string(),
             state: State::new(),
             recent_data: Recent::default(),
@@ -119,7 +119,7 @@ impl Data {
     }
 
     pub fn set_path(&mut self, path: String) {
-        self.chart.path = path
+        self.chart.path = Some(path)
     }
 }
 
@@ -127,14 +127,14 @@ impl Data {
 #[derive(Default)]
 struct EcgChart {
     data_points: VecDeque<(u64, i32)>,
-    pub path: String,
+    pub path: Option<String>,
 }
 
 impl EcgChart {
-    pub fn new(path: String) -> Result<EcgChart, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<EcgChart, Box<dyn std::error::Error>> {
         let mut chart = Self {
             data_points: VecDeque::with_capacity(200),
-            path,
+            path: None,
         };
         chart.update_data()?;
 
@@ -152,7 +152,12 @@ impl EcgChart {
 
     // Get initial data from file
     fn update_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
-        let file = File::open(&self.path)?;
+        let path = if let Some(path) = &self.path {
+            path
+        } else {
+            return Ok(());
+        };
+        let file = File::open(path)?;
         let records = RevLines::with_capacity(400, BufReader::new(file))?;
 
         for record in records.take(200) {
