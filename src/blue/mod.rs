@@ -11,7 +11,7 @@ use arctic::{
 };
 use fs::{init, write_data, write_hr};
 use setting::Setting;
-use std::sync::Arc;
+use std::sync::{self, Arc};
 use tokio::sync::{
     watch::{channel, Receiver, Sender},
     Mutex,
@@ -115,6 +115,8 @@ struct Handler {
     rate: u8,
     paths: Paths,
     sender: DataSender,
+    hr_start: sync::Mutex<Option<u64>>,
+    pmd_start: sync::Mutex<Option<u64>>,
 }
 
 impl Handler {
@@ -124,6 +126,8 @@ impl Handler {
             rate,
             paths,
             sender,
+            hr_start: sync::Mutex::new(None),
+            pmd_start: sync::Mutex::new(None),
         }
     }
 }
@@ -131,7 +135,7 @@ impl Handler {
 #[async_trait]
 impl EventHandler for Handler {
     async fn heart_rate_update(&self, _ctx: &PolarSensor, heartrate: HeartRate) {
-        match write_hr(heartrate, &self.paths.hr).await {
+        match write_hr(heartrate, &self.paths.hr, &self.hr_start).await {
             Ok(last) => {
                 self.sender.hr(last.0);
                 self.sender.rr(last.1);
@@ -141,11 +145,11 @@ impl EventHandler for Handler {
     }
 
     async fn measurement_update(&self, _ctx: &PolarSensor, data: PmdRead) {
-        match write_data(data, self.rate, &self.paths).await {
+        match write_data(data, self.rate, &self.paths, &self.pmd_start).await {
             Ok(Some(last)) => {
                 self.sender.acc(last);
             }
-            Err(e) => eprintln!("measurement writing error: {:?}", e),
+            Err(e) => eprintln!("Measurement writing error: {:?}", e),
             _ => {}
         }
     }
