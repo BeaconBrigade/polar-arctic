@@ -1,6 +1,6 @@
 [package]
 name = "polar-arctic"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 authors = ["BeaconBrigade <beaconbrigade@gmail.com>"]
 description = "An app for displaying and storing data from the Polar H10"
