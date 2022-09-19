@@ -1923,9 +1923,9 @@ dependencies = [
 
 [[package]]
 name = "plotters-iced"
-version = "0.3.1"
+version = "0.3.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a824740fd75e62a6c64e92fab3343e09615d20db25371299aecdf99ba7c391cf"
+checksum = "fcb97f429f126265fe912e4a922ed3fdb4e97ceb6a31d39bb968546b1a610003"
 dependencies = [
  "cc",
  "iced_graphics",
@@ -1971,7 +1971,7 @@ dependencies = [
 
 [[package]]
 name = "polar-arctic"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "arctic",
  "chrono",
