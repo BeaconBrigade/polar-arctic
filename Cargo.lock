@@ -1923,9 +1923,9 @@ dependencies = [
 
 [[package]]
 name = "plotters-iced"
-version = "0.3.2"
+version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcb97f429f126265fe912e4a922ed3fdb4e97ceb6a31d39bb968546b1a610003"
+checksum = "5c688626917414b57fb11f5641f9e725a07cf0e520c0c4dad0fef0f23787a6b4"
 dependencies = [
  "cc",
  "iced_graphics",
