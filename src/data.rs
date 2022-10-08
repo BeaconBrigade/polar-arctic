@@ -1,7 +1,10 @@
-use iced::pure::{button, column, row, text_input, widget::Text, Pure, State};
-use iced::{Column, Length, Row, Rule};
+use iced::pure::{
+    widget::{Button, Column, Row, Text, TextInput},
+    Element,
+};
+use iced::{Length, Rule};
 use plotters::prelude::*;
-use plotters_iced::{Chart, ChartWidget, DrawingBackend};
+use plotters_iced::pure::{Chart, ChartWidget};
 use rev_lines::RevLines;
 use std::collections::VecDeque;
 use std::fs::File;
@@ -10,10 +13,10 @@ use tokio::sync::watch::Receiver;
 
 use super::{modal::PopupMessage, Message, WhichView};
 
+#[derive(Debug)]
 pub struct Data {
     chart: EcgChart,
     device_id: String,
-    state: State,
     recent_data: Recent,
     receiver: Option<DataReceiver>,
 }
@@ -23,7 +26,6 @@ impl Default for Data {
         Self {
             chart: EcgChart::new().unwrap(),
             device_id: "".to_string(),
-            state: State::new(),
             recent_data: Recent::default(),
             receiver: None,
         }
@@ -39,24 +41,25 @@ impl Data {
         self.receiver = Some(receiver);
     }
 
-    pub fn view(&mut self) -> iced::Element<Message> {
-        let back = button(Text::new("Back to menu").size(20))
+    pub fn view(&self) -> Element<Message> {
+        let back = Button::new(Text::new("Back to menu").size(20))
             .on_press(Message::SwitchView(WhichView::Menu))
             .padding(15);
-        let help = button(Text::new("Help").size(20))
+        let help = Button::new(Text::new("Help").size(20))
             .on_press(Message::Popup(PopupMessage::DataHelp))
             .padding(15);
 
-        let header = row().push(back).push(help);
+        let header = Row::new().push(back).push(help);
 
-        let input = text_input("Device ID", &self.device_id, Message::NewDeviceID)
+        let input = TextInput::new("Device ID", &self.device_id, Message::NewDeviceID)
             .padding(15)
             .size(20)
             .on_submit(Message::CreateSensor);
 
-        let stop_button = button(Text::new("Stop Measurement")).on_press(Message::StopMeasurement);
+        let stop_button =
+            Button::new(Text::new("Stop Measurement")).on_press(Message::StopMeasurement);
 
-        let view = column()
+        let view = Column::new()
             .spacing(20)
             .width(Length::Fill)
             .max_width(1000)
@@ -64,8 +67,6 @@ impl Data {
             .push(Rule::horizontal(10))
             .push(input)
             .push(stop_button);
-
-        let pure = Pure::new(&mut self.state, view);
 
         let rr_text = &self.recent_data.rr;
         let mut rr_text = rr_text.chars();
@@ -76,10 +77,10 @@ impl Data {
             "RR interval (µV): {}",
             rr_text.as_str().replace(',', ", ")
         ));
-        let acc_title = iced::Text::new("Acceleration (mG):");
-        let x = iced::Text::new(&format!("    X: {}", self.recent_data.x));
-        let y = iced::Text::new(&format!("    Y: {}", self.recent_data.y));
-        let z = iced::Text::new(&format!("    Z: {}", self.recent_data.z));
+        let acc_title = Text::new("Acceleration (mG):");
+        let x = Text::new(&format!("    X: {}", self.recent_data.x));
+        let y = Text::new(&format!("    Y: {}", self.recent_data.y));
+        let z = Text::new(&format!("    Z: {}", self.recent_data.z));
 
         let data_column = Column::new()
             .spacing(20)
@@ -92,10 +93,11 @@ impl Data {
 
         let data = Row::new()
             .spacing(20)
+            .push(view)
             .push(self.chart.view())
             .push(data_column);
 
-        Column::new().spacing(20).push(pure).push(data).into()
+        Column::new().spacing(20).push(data).into()
     }
 
     pub fn update_id(&mut self, msg: String) {
@@ -107,7 +109,7 @@ impl Data {
     }
 
     pub fn update(&mut self) {
-        self.chart.update();
+        self.chart.update_data();
         if let Some(rx) = &self.receiver {
             self.recent_data.bpm = rx.hr();
             self.recent_data.rr = rx.rr();
@@ -124,7 +126,7 @@ impl Data {
 }
 
 // Store chart data
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct EcgChart {
     data_points: VecDeque<(u64, i32)>,
     pub path: Option<String>,
@@ -136,13 +138,13 @@ impl EcgChart {
             data_points: VecDeque::with_capacity(200),
             path: None,
         };
-        chart.update_data()?;
+        chart.update_data_internal()?;
 
         Ok(chart)
     }
 
     // Draw chart
-    fn view(&mut self) -> iced::Element<Message> {
+    fn view(&self) -> Element<Message> {
         let chart = ChartWidget::new(self)
             .width(Length::Units(400))
             .height(Length::Units(400));
@@ -151,7 +153,7 @@ impl EcgChart {
     }
 
     // Get initial data from file
-    fn update_data(&mut self) -> Result<(), Box<dyn std::error::Error>> {
+    fn update_data_internal(&mut self) -> Result<(), Box<dyn std::error::Error>> {
         let path = if let Some(path) = &self.path {
             path
         } else {
@@ -182,16 +184,17 @@ impl EcgChart {
     }
 
     // Update data - remove data from the end and add to the start
-    fn update(&mut self) {
-        if let Err(e) = self.update_data() {
+    fn update_data(&mut self) {
+        if let Err(e) = self.update_data_internal() {
             eprintln!("Error getting data: {}", e);
         }
     }
 }
 
 impl Chart<Message> for EcgChart {
+    type State = ();
     // Create plotters chart
-    fn build_chart<DB: DrawingBackend>(&self, mut builder: ChartBuilder<DB>) {
+    fn build_chart<DB: DrawingBackend>(&self, _state: &Self::State, mut builder: ChartBuilder<DB>) {
         let mut ctx = builder
             .set_label_area_size(LabelAreaPosition::Bottom, -181)
             .set_label_area_size(LabelAreaPosition::Left, 40)
@@ -223,6 +226,7 @@ pub struct Recent {
 }
 
 // Instead of reading the output files, get messages containing the data
+#[derive(Debug)]
 pub struct DataReceiver {
     hr: Receiver<u8>,
     rr: Receiver<String>,

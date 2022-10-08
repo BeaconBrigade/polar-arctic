@@ -23,6 +23,14 @@ pub struct SensorManager {
     pub sensor: Option<PolarSensor>,
 }
 
+impl std::fmt::Debug for SensorManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("SensorManager")
+            .field("sensor", &"PolarSensor { /* private fields */ }")
+            .finish()
+    }
+}
+
 impl SensorManager {
     pub async fn start(&mut self) -> Result<(), Error> {
         if let Some(sensor) = &mut self.sensor {

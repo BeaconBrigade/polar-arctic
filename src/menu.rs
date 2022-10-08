@@ -2,31 +2,29 @@ use crate::{blue::setting::Setting, modal::PopupMessage, Message};
 use chrono::{DateTime, Utc};
 use iced::pure::{
     self, button, column, text_input,
-    widget::{PickList, Toggler},
-    Pure, State,
+    widget::{PickList, Toggler, Text, Column},
+    Element,
 };
-use iced::{Column, Element, Length, Text};
+use iced::Length;
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Menu {
     pub meta_state: MetaState,
-    pub state: State,
 }
 
 impl Menu {
     pub fn new() -> Self {
         Self {
             meta_state: MetaState::default(),
-            state: State::new(),
         }
     }
 
-    pub fn view(&mut self) -> Element<Message> {
+    pub fn view(&self) -> Element<Message> {
         let title = Text::new("Metadata").size(30);
 
         Column::new()
             .push(title)
-            .push(Pure::new(&mut self.state, self.meta_state.view()))
+            .push(self.meta_state.view())
             .into()
     }
 
@@ -141,14 +139,14 @@ pub struct Paths {
 }
 
 // Store states for meta data
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct MetaState {
     pub meta_data: Meta,
     pub paths: Paths,
 }
 
 impl MetaState {
-    fn view(&mut self) -> pure::Element<Message> {
+    fn view(&self) -> pure::Element<Message> {
         let help =
             button(Text::new("Help").size(20)).on_press(Message::Popup(PopupMessage::MenuHelp));
         // Meta data inputs

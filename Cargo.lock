@@ -1930,6 +1930,7 @@ dependencies = [
  "cc",
  "iced_graphics",
  "iced_native",
+ "iced_pure",
  "libc",
  "num-traits",
  "plotters",

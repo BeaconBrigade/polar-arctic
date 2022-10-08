@@ -15,9 +15,9 @@ documentation = "https://docs.rs/polar-arctic/latest/polar-arctic"
 
 [dependencies]
 rev_lines = "0.2.1"
-plotters-iced = "0.3"
-iced = { version = "0.4", features = ["tokio", "canvas", "pure" ] }
-iced_aw = { version = "0.2", features = ["card", "pure", "modal" ] }
+plotters-iced = { version = "0.3", features = ["pure"] }
+iced = { version = "0.4", features = ["tokio", "canvas", "pure"] }
+iced_aw = { version = "0.2", features = ["card", "pure", "modal"] }
 plotters = "0.3"
 chrono = "0.4.22"
 tokio = { version = "1.21.2", features = ["full"] }

@@ -1,9 +1,8 @@
 use iced::{
-    self, alignment, executor,
-    pure::{Pure, State},
-    Application, Column, Command, Container, Element, Length, Rule, Subscription, Text,
+    self, alignment, executor, Command, Length,
+    Subscription, Text, pure::{Application, Element, widget::{Column, Container, Rule}}
 };
-use iced_aw::{pure::Card, Modal};
+use iced_aw::pure::{Card, Modal};
 use std::sync::Arc;
 use std::time;
 use tokio::sync::{
@@ -22,25 +21,26 @@ use menu::{Menu, Paths, Type, WhichMeta};
 use modal::{get_modal, PopupMessage};
 
 // Main Application
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct App {
     sensor_manager: Arc<Mutex<SensorManager>>,
     view: Views,
     which_err: PopupMessage,
-    modal_state: iced_aw::modal::State<State>,
+    show_err: bool,
     settings: Setting,
     tx: Option<Sender<bool>>,
     paths: Paths,
 }
 
 // Possible views to show the user
+#[derive(Debug)]
 pub enum Views {
     Menu(Box<Menu>),
     Data(Box<Data>),
 }
 
 impl Views {
-    fn view(&mut self) -> iced::Element<Message> {
+    fn view(&self) -> Element<Message> {
         match self {
             Views::Menu(menu) => menu.view(),
             Views::Data(data) => data.view(),
@@ -194,11 +194,11 @@ impl Application for App {
                 }
             }
             Message::CloseModal => {
-                self.modal_state.show(false);
+                self.show_err = false;
                 Command::none()
             }
             Message::Popup(which) => {
-                self.modal_state.show(true);
+                self.show_err = true;
                 self.which_err = which;
                 if let PopupMessage::Connected = &self.which_err {
                     self.update(Message::Connected)
@@ -285,7 +285,7 @@ impl Application for App {
         iced::time::every(time::Duration::from_millis(100)).map(|_| Message::Tick)
     }
 
-    fn view(&mut self) -> Element<'_, Message> {
+    fn view(&self) -> Element<'_, Message> {
         let title = Text::new("Polar-Arctic")
             .width(Length::Fill)
             .size(60)
@@ -300,18 +300,16 @@ impl Application for App {
                 .push(body),
         );
 
-        Modal::new(&mut self.modal_state, content, |state| {
-            let (title, body) = get_modal(self.which_err.clone());
-            let body = iced::pure::widget::Text::new(body);
+        let (title, body) = get_modal(&self.which_err);
 
-            let card = Card::new(iced::pure::widget::Text::new(title), body)
+        Modal::new(self.show_err, content, move || {
+            Card::new(Text::new(title), Text::new(&body))
                 .max_width(300)
-                .on_close(Message::CloseModal);
-
-            Pure::new(state, card).into()
+                .on_close(Message::CloseModal)
+                .into()
         })
-        .backdrop(Message::CloseModal)
-        .on_esc(Message::CloseModal)
-        .into()
+            .backdrop(Message::CloseModal)
+            .on_esc(Message::CloseModal)
+            .into()
     }
 }
