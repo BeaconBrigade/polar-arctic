@@ -1,6 +1,10 @@
 use iced::{
-    self, alignment, executor, Command, Length,
-    Subscription, Text, pure::{Application, Element, widget::{Column, Container, Rule}}
+    self, alignment, executor,
+    pure::{
+        widget::{Column, Container, Rule},
+        Application, Element,
+    },
+    Command, Length, Subscription, Text,
 };
 use iced_aw::pure::{Card, Modal};
 use std::sync::Arc;
@@ -308,8 +312,8 @@ impl Application for App {
                 .on_close(Message::CloseModal)
                 .into()
         })
-            .backdrop(Message::CloseModal)
-            .on_esc(Message::CloseModal)
-            .into()
+        .backdrop(Message::CloseModal)
+        .on_esc(Message::CloseModal)
+        .into()
     }
 }

@@ -2,7 +2,7 @@ use crate::{blue::setting::Setting, modal::PopupMessage, Message};
 use chrono::{DateTime, Utc};
 use iced::pure::{
     self, button, column, text_input,
-    widget::{PickList, Toggler, Text, Column},
+    widget::{Column, PickList, Text, Toggler},
     Element,
 };
 use iced::Length;
