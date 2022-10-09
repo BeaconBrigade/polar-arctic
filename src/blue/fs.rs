@@ -130,13 +130,13 @@ fn generate_msg(
 
     let last = match ty {
         H10MeasurementType::Acc => Some((x as i16, y as i16, z as i16)),
-        _ => None,
+        H10MeasurementType::Ecg => None,
     };
 
     (msg, last)
 }
 
-const DIFF_FROM_H10_TO_UNIX: u64 = 946684800000000000;
+const DIFF_FROM_H10_TO_UNIX: u64 = 946_684_800_000_000_000;
 
 // Write hr data
 pub async fn write_hr(

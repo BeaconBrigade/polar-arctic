@@ -121,7 +121,7 @@ impl Data {
     }
 
     pub fn set_path(&mut self, path: String) {
-        self.chart.path = Some(path)
+        self.chart.path = Some(path);
     }
 }
 

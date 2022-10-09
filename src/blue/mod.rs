@@ -90,7 +90,7 @@ pub async fn new_device(
     }
 
     if ecg {
-        sensor.data_type_push(H10MeasurementType::Ecg)
+        sensor.data_type_push(H10MeasurementType::Ecg);
     }
     if acc {
         sensor.data_type_push(H10MeasurementType::Acc);

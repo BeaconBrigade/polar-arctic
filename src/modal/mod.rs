@@ -38,8 +38,8 @@ pub fn get_modal(ty: &PopupMessage) -> (&'static str, String) {
             },
         ),
         PopupMessage::DeviceID => ("Invalid device ID", "Invalid device ID. Device IDs are 6 characters long".to_owned()),
-        PopupMessage::Polar(err) => ("Bluetooth error", err.to_owned()),
-        PopupMessage::Io(err) => ("Error finding output file", err.to_owned()),
+        PopupMessage::Polar(err) => ("Bluetooth error", err.clone()),
+        PopupMessage::Io(err) => ("Error finding output file", err.clone()),
         PopupMessage::Connected => (
             "Device connected!",
             "Device connected!".to_owned(),
