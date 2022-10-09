@@ -20,7 +20,7 @@ impl Default for PopupMessage {
 
 impl From<WhichMeta> for PopupMessage {
     fn from(which: WhichMeta) -> Self {
-        PopupMessage::Meta(which)
+        Self::Meta(which)
     }
 }
 

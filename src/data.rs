@@ -133,7 +133,7 @@ struct EcgChart {
 }
 
 impl EcgChart {
-    pub fn new() -> Result<EcgChart, Box<dyn std::error::Error>> {
+    pub fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let mut chart = Self {
             data_points: VecDeque::with_capacity(200),
             path: None,

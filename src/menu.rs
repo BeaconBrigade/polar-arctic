@@ -93,7 +93,7 @@ pub struct Meta {
 
 impl Default for Meta {
     fn default() -> Self {
-        Meta {
+        Self {
             id: "".to_string(),
             session: "".to_string(),
             trial: "".to_string(),

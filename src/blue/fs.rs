@@ -17,9 +17,9 @@ enum MeasureType {
 impl ToString for MeasureType {
     fn to_string(&self) -> String {
         match self {
-            MeasureType::Hr => "time,bpm,rr\n",
-            MeasureType::Ecg => "time,val\n",
-            MeasureType::Acc => "time,x,y,z\n",
+            Self::Hr => "time,bpm,rr\n",
+            Self::Ecg => "time,val\n",
+            Self::Acc => "time,x,y,z\n",
         }
         .to_string()
     }
@@ -107,12 +107,13 @@ fn generate_msg(
     let ty = *data.data_type();
 
     let mut first = start.lock().expect("stupid mutex");
-    timestamp = if let Some(st) = first.as_ref() {
-        timestamp - *st
-    } else {
-        *first = Some(timestamp);
-        0
-    };
+    timestamp = first.map_or_else(
+        || {
+            *first = Some(timestamp);
+            0
+        },
+        |so_far| timestamp - so_far,
+    );
 
     for d in data.data() {
         match d {
@@ -154,12 +155,13 @@ pub async fn write_hr(
     // so mutex goes out of scope
     {
         let mut first = start.lock().expect("stupid mutex");
-        timestamp = if let Some(st) = first.as_ref() {
-            timestamp - *st as u128
-        } else {
-            *first = Some(timestamp as u64);
-            0
-        };
+        timestamp = first.map_or_else(
+            || {
+                *first = Some(timestamp as u64);
+                0
+            },
+            |so_far| timestamp - so_far as u128,
+        );
     }
 
     let mut rr = "".to_string();

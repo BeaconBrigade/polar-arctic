@@ -46,15 +46,15 @@ pub enum Views {
 impl Views {
     fn view(&self) -> Element<Message> {
         match self {
-            Views::Menu(menu) => menu.view(),
-            Views::Data(data) => data.view(),
+            Self::Menu(menu) => menu.view(),
+            Self::Data(data) => data.view(),
         }
     }
 }
 
 impl Default for Views {
     fn default() -> Self {
-        Views::Menu(Box::new(Menu::new()))
+        Self::Menu(Box::new(Menu::new()))
     }
 }
 
@@ -67,8 +67,8 @@ pub enum WhichView {
 impl From<WhichView> for Views {
     fn from(which: WhichView) -> Self {
         match which {
-            WhichView::Menu => Views::Menu(Box::new(Menu::default())),
-            WhichView::Data => Views::Data(Box::new(Data::new())),
+            WhichView::Menu => Self::Menu(Box::new(Menu::default())),
+            WhichView::Data => Self::Data(Box::new(Data::new())),
         }
     }
 }
@@ -95,11 +95,10 @@ pub enum Message {
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
-
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        (App::default(), Command::none())
+        (Self::default(), Command::none())
     }
 
     fn title(&self) -> String {

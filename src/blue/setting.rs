@@ -15,7 +15,7 @@ impl Default for Setting {
 }
 
 impl Setting {
-    pub fn new(hr: bool, ecg: bool, acc: bool, range: u8, rate: u8) -> Self {
+    pub const fn new(hr: bool, ecg: bool, acc: bool, range: u8, rate: u8) -> Self {
         Self {
             hr,
             ecg,
