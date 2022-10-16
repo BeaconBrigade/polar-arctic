@@ -92,7 +92,7 @@ fn generate_msg(
     rate: u8,
     start: &Mutex<Option<u64>>,
 ) -> (String, Option<(i16, i16, i16)>) {
-    let mut msg = "".to_string();
+    let mut msg = String::default();
     let mut timestamp = data.time_stamp();
 
     // change in timestamp between samples
@@ -130,7 +130,7 @@ fn generate_msg(
 
     let last = match ty {
         H10MeasurementType::Acc => Some((x as i16, y as i16, z as i16)),
-        H10MeasurementType::Ecg => None,
+        _ => None,
     };
 
     (msg, last)
@@ -164,7 +164,7 @@ pub async fn write_hr(
         );
     }
 
-    let mut rr = "".to_string();
+    let mut rr = String::default();
     let stupid = vec![]; // unwanted silly empty array
     let rr_data = data.rr().as_ref().unwrap_or(&stupid);
     for i in rr_data {

@@ -25,7 +25,7 @@ impl Default for Data {
     fn default() -> Self {
         Self {
             chart: EcgChart::new().unwrap(),
-            device_id: "".to_string(),
+            device_id: String::default(),
             recent_data: Recent::default(),
             receiver: None,
         }
@@ -44,15 +44,15 @@ impl Data {
     pub fn view(&self) -> Element<Message> {
         let back = Button::new(Text::new("Back to menu").size(20))
             .on_press(Message::SwitchView(WhichView::Menu))
-            .padding(15);
+            .padding(10);
         let help = Button::new(Text::new("Help").size(20))
             .on_press(Message::Popup(PopupMessage::DataHelp))
-            .padding(15);
+            .padding(10);
 
         let header = Row::new().push(back).push(help);
 
         let input = TextInput::new("Device ID", &self.device_id, Message::NewDeviceID)
-            .padding(15)
+            .padding(10)
             .size(20)
             .on_submit(Message::CreateSensor);
 

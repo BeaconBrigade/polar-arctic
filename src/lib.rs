@@ -1,5 +1,7 @@
 use iced::{
-    self, alignment, executor,
+    self,
+    alignment::Horizontal,
+    executor,
     pure::{
         widget::{Column, Container, Rule},
         Application, Element,
@@ -291,8 +293,8 @@ impl Application for App {
     fn view(&self) -> Element<'_, Message> {
         let title = Text::new("Polar-Arctic")
             .width(Length::Fill)
-            .size(60)
-            .horizontal_alignment(alignment::Horizontal::Center);
+            .size(50)
+            .horizontal_alignment(Horizontal::Center);
 
         let body = self.view.view();
 

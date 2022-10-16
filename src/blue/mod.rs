@@ -176,7 +176,7 @@ pub struct DataSender {
 impl DataSender {
     pub fn init_transmitters() -> (Self, DataReceiver) {
         let (hr_tx, hr_rx) = channel(0);
-        let (rr_tx, rr_rx) = channel("".to_string());
+        let (rr_tx, rr_rx) = channel(String::default());
         let (acc_tx, acc_rx) = channel((0, 0, 0));
 
         (

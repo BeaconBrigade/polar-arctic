@@ -1,8 +1,8 @@
 use crate::{blue::setting::Setting, modal::PopupMessage, Message};
 use chrono::{DateTime, Utc};
 use iced::pure::{
-    self, button, column, text_input,
-    widget::{Column, PickList, Text, Toggler},
+    self, button, column, row, text_input,
+    widget::{Column, Container, PickList, Text, Toggler},
     Element,
 };
 use iced::Length;
@@ -25,6 +25,7 @@ impl Menu {
         Column::new()
             .push(title)
             .push(self.meta_state.view())
+            .padding(20)
             .into()
     }
 
@@ -70,11 +71,11 @@ impl Menu {
             return Err(WhichMeta::NoPath);
         }
 
-        // get rid of commas to not mess up csv file
-        meta.meta_data.id = meta.meta_data.id.replace(',', "-");
-        meta.meta_data.session = meta.meta_data.session.replace(',', "-");
-        meta.meta_data.trial = meta.meta_data.trial.replace(',', "-");
-        meta.meta_data.description = meta.meta_data.description.replace(',', "-");
+        // escape quotation marks
+        meta.meta_data.id = meta.meta_data.id.replace('"', "\"\"");
+        meta.meta_data.session = meta.meta_data.session.replace('"', "\"\"");
+        meta.meta_data.trial = meta.meta_data.trial.replace('"', "\"\"");
+        meta.meta_data.description = meta.meta_data.description.replace('"', "\"\"");
 
         Ok(())
     }
@@ -94,10 +95,10 @@ pub struct Meta {
 impl Default for Meta {
     fn default() -> Self {
         Self {
-            id: "".to_string(),
-            session: "".to_string(),
-            trial: "".to_string(),
-            description: "".to_string(),
+            id: String::default(),
+            session: String::default(),
+            trial: String::default(),
+            description: String::default(),
             date: Utc::now(),
             settings: Setting::default(),
         }
@@ -106,8 +107,9 @@ impl Default for Meta {
 
 impl ToString for Meta {
     fn to_string(&self) -> String {
+        // Quote each field so commas won't break csv data
         format!(
-            "{},{},{},{},{}\n",
+            "\"{}\",\"{}\",\"{}\",\"{}\",\"{}\"\n",
             self.id, self.session, self.trial, self.date, self.description
         )
     }
@@ -152,16 +154,20 @@ impl MetaState {
         // Meta data inputs
         let id = text_input("Participant ID", &self.meta_data.id, |s| {
             Message::ChangeMeta(WhichMeta::Id, s)
-        });
+        })
+        .padding(5);
         let session = text_input("Session Number", &self.meta_data.session, |s| {
             Message::ChangeMeta(WhichMeta::Session, s)
-        });
+        })
+        .padding(5);
         let trial = text_input("Trial number", &self.meta_data.trial, |s| {
             Message::ChangeMeta(WhichMeta::Trial, s)
-        });
+        })
+        .padding(5);
         let description = text_input("Description/Notes", &self.meta_data.description, |s| {
             Message::ChangeMeta(WhichMeta::Description, s)
-        });
+        })
+        .padding(5);
 
         // Toggles for measurement types
         let hr_selector = Toggler::new(
@@ -180,9 +186,13 @@ impl MetaState {
             |b| Message::UpdateSelection(Type::Ecg, b),
         );
 
+        let select_container = column()
+            .push(hr_selector)
+            .push(acc_selector)
+            .push(ecg_selector)
+            .width(Length::Units(200));
+
         // Range and rate selector
-        let select_title =
-            Text::new("Select range and sample rate (only for acceleration)").size(30);
         let range_selector = PickList::new(
             vec![2, 4, 8],
             Some(self.meta_data.settings.range),
@@ -194,18 +204,29 @@ impl MetaState {
             Message::RateChange,
         );
 
+        let range_row = row()
+            .push(Container::new(Text::new("Select range:")).padding(10))
+            .push(range_selector);
+        let rate_row = row()
+            .push(Container::new(Text::new("Select rate:")).padding(10))
+            .push(rate_selector);
+        let pick_container = column().push(range_row).push(rate_row);
+
         // Path selectors
         let hr_path = text_input("Path to hr output file", &self.paths.hr, |s| {
             Message::SetPath(Type::Hr, s)
-        });
+        })
+        .padding(5);
         let acc_path = text_input("Path to acceleration output file", &self.paths.acc, |s| {
             Message::SetPath(Type::Acc, s)
-        });
+        })
+        .padding(5);
         let ecg_path = text_input(
             "Path to electrocardiagram output file",
             &self.paths.ecg,
             |s| Message::SetPath(Type::Ecg, s),
-        );
+        )
+        .padding(5);
 
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 
@@ -218,12 +239,8 @@ impl MetaState {
             .push(session)
             .push(trial)
             .push(description)
-            .push(hr_selector)
-            .push(acc_selector)
-            .push(ecg_selector)
-            .push(select_title)
-            .push(range_selector)
-            .push(rate_selector)
+            .push(select_container)
+            .push(pick_container)
             .push(hr_path)
             .push(acc_path)
             .push(ecg_path)
