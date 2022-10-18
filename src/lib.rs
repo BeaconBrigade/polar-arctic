@@ -9,6 +9,7 @@ use iced::{
     Command, Length, Subscription, Text,
 };
 use iced_aw::pure::{Card, Modal};
+use native_dialog::FileDialog;
 use std::sync::Arc;
 use std::time;
 use tokio::sync::{
@@ -91,7 +92,7 @@ pub enum Message {
     RangeChange(u8),
     RateChange(u8),
     StopMeasurement,
-    SetPath(Type, String),
+    SetPath(Type),
 }
 
 impl Application for App {
@@ -263,8 +264,9 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Message::SetPath(ty, path) => {
+            Message::SetPath(ty) => {
                 if let Views::Menu(menu) = &mut self.view {
+                    let path = FileDialog::new().show_save_single_file().unwrap();
                     match ty {
                         Type::Hr => {
                             menu.meta_state.paths.hr = path.clone();

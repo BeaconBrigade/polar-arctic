@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{blue::setting::Setting, modal::PopupMessage, Message};
 use chrono::{DateTime, Utc};
 use iced::pure::{
@@ -61,13 +63,13 @@ impl Menu {
         {
             return Err(WhichMeta::NoData);
         }
-        if meta.meta_data.settings.hr && meta.paths.hr.is_empty() {
+        if meta.meta_data.settings.hr && meta.paths.hr.is_none() {
             return Err(WhichMeta::NoPath);
         }
-        if meta.meta_data.settings.acc && meta.paths.acc.is_empty() {
+        if meta.meta_data.settings.acc && meta.paths.acc.is_none() {
             return Err(WhichMeta::NoPath);
         }
-        if meta.meta_data.settings.ecg && meta.paths.ecg.is_empty() {
+        if meta.meta_data.settings.ecg && meta.paths.ecg.is_none() {
             return Err(WhichMeta::NoPath);
         }
 
@@ -135,9 +137,9 @@ pub enum Type {
 
 #[derive(Debug, Default, Clone)]
 pub struct Paths {
-    pub hr: String,
-    pub acc: String,
-    pub ecg: String,
+    pub hr: Option<PathBuf>,
+    pub acc: Option<PathBuf>,
+    pub ecg: Option<PathBuf>,
 }
 
 // Store states for meta data
@@ -213,20 +215,56 @@ impl MetaState {
         let pick_container = column().push(range_row).push(rate_row);
 
         // Path selectors
-        let hr_path = text_input("Path to hr output file", &self.paths.hr, |s| {
-            Message::SetPath(Type::Hr, s)
-        })
+        let hr_prompt = Text::new("Path to heart rate output file    ");
+        let hr_path = button(Text::new(if self.paths.hr.is_none() {
+            "Select"
+        } else {
+            self.paths
+                .hr
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap_or("Invalid Unicode")
+        }))
+        .on_press(Message::SetPath(Type::Hr))
         .padding(5);
-        let acc_path = text_input("Path to acceleration output file", &self.paths.acc, |s| {
-            Message::SetPath(Type::Acc, s)
-        })
+        let hr_row = row().push(hr_prompt).push(hr_path);
+
+        let acc_prompt = Text::new("Path to acceleration output file    ");
+        let acc_path = button(Text::new(if self.paths.acc.is_none() {
+            "Select"
+        } else {
+            self.paths
+                .acc
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap_or("Invalid Unicode")
+        }))
+        .on_press(Message::SetPath(Type::Acc))
         .padding(5);
-        let ecg_path = text_input(
-            "Path to electrocardiagram output file",
-            &self.paths.ecg,
-            |s| Message::SetPath(Type::Ecg, s),
-        )
+        let acc_row = row().push(acc_prompt).push(acc_path);
+
+        let ecg_prompt = Text::new("Path to electrocardiagram output file    ");
+        let ecg_path = button(Text::new(if self.paths.ecg.is_none() {
+            "Select"
+        } else {
+            self.paths
+                .ecg
+                .as_ref()
+                .unwrap()
+                .file_name()
+                .unwrap()
+                .to_str()
+                .unwrap_or("Invalid Unicode")
+        }))
+        .on_press(Message::SetPath(Type::Ecg))
         .padding(5);
+        let ecg_row = row().push(ecg_prompt).push(ecg_path);
 
         let submit = button(Text::new("Submit")).on_press(Message::NewMeta);
 
@@ -241,9 +279,9 @@ impl MetaState {
             .push(description)
             .push(select_container)
             .push(pick_container)
-            .push(hr_path)
-            .push(acc_path)
-            .push(ecg_path)
+            .push(hr_row)
+            .push(acc_row)
+            .push(ecg_row)
             .push(submit)
             .into()
     }

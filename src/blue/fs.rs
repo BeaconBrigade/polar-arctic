@@ -1,8 +1,8 @@
 use super::setting::Setting;
 use crate::menu::{Meta, Paths};
 use arctic::{H10MeasurementType, HeartRate, PmdData, PmdRead};
-use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{io::ErrorKind, path::PathBuf, sync::Mutex};
 use tokio::{
     fs::OpenOptions,
     io::{AsyncWriteExt, BufWriter, Error},
@@ -47,12 +47,20 @@ pub async fn init(
 }
 
 // Add headers to each csv file
-async fn add_headers(ty: MeasureType, path: &str, mut msg: String) -> Result<(), Error> {
+async fn add_headers(
+    ty: MeasureType,
+    path: &Option<PathBuf>,
+    mut msg: String,
+) -> Result<(), Error> {
     let output = OpenOptions::new()
         .write(true)
         .truncate(true)
         .create(true)
-        .open(path)
+        .open(
+            path.as_ref()
+                .ok_or_else(|| Error::new(ErrorKind::Other, "Not found."))?
+                .as_path(),
+        )
         .await?;
     let mut writer = BufWriter::with_capacity(200, output);
     msg.push_str(&ty.to_string());
@@ -75,7 +83,15 @@ pub async fn write_data(
         H10MeasurementType::Ecg => &paths.ecg,
     };
 
-    let outfile = OpenOptions::new().append(true).open(outpath).await?;
+    let outfile = OpenOptions::new()
+        .append(true)
+        .open(
+            outpath
+                .as_ref()
+                .ok_or_else(|| Error::new(ErrorKind::Other, "Not found."))?
+                .as_path(),
+        )
+        .await?;
 
     let mut writer = BufWriter::with_capacity(400, outfile);
     let msg = generate_msg(data, rate, start);
@@ -141,10 +157,17 @@ const DIFF_FROM_H10_TO_UNIX: u64 = 946_684_800_000_000_000;
 // Write hr data
 pub async fn write_hr(
     data: HeartRate,
-    path: &str,
+    path: &Option<PathBuf>,
     start: &Mutex<Option<u64>>,
 ) -> Result<(u8, String), Error> {
-    let outfile = OpenOptions::new().append(true).open(path).await?;
+    let outfile = OpenOptions::new()
+        .append(true)
+        .open(
+            path.as_ref()
+                .ok_or_else(|| Error::new(ErrorKind::Other, "Not found."))?
+                .as_path(),
+        )
+        .await?;
 
     let unix = SystemTime::now()
         .duration_since(UNIX_EPOCH)

@@ -6,9 +6,9 @@ use iced::{Length, Rule};
 use plotters::prelude::*;
 use plotters_iced::pure::{Chart, ChartWidget};
 use rev_lines::RevLines;
-use std::collections::VecDeque;
 use std::fs::File;
 use std::io::BufReader;
+use std::{collections::VecDeque, path::PathBuf};
 use tokio::sync::watch::Receiver;
 
 use super::{modal::PopupMessage, Message, WhichView};
@@ -120,8 +120,8 @@ impl Data {
         }
     }
 
-    pub fn set_path(&mut self, path: String) {
-        self.chart.path = Some(path);
+    pub fn set_path(&mut self, path: Option<PathBuf>) {
+        self.chart.path = path;
     }
 }
 
@@ -129,7 +129,7 @@ impl Data {
 #[derive(Default, Debug)]
 struct EcgChart {
     data_points: VecDeque<(u64, i32)>,
-    pub path: Option<String>,
+    pub path: Option<PathBuf>,
 }
 
 impl EcgChart {
