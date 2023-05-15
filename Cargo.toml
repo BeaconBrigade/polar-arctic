@@ -20,7 +20,7 @@ iced = { version = "0.4", features = ["tokio", "canvas", "pure"] }
 iced_aw = { version = "0.2", features = ["card", "pure", "modal"] }
 plotters = "0.3"
 chrono = "0.4.24"
-tokio = { version = "1.27.0", features = ["full"] }
+tokio = { version = "1.28.1", features = ["full"] }
 arctic = "1.0.0"
 futures = "0.3.28"
 native-dialog = "0.6.3"
